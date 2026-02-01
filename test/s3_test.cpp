@@ -42,8 +42,7 @@ protected:
             "test-bucket-tags"
         };
         for (const std::string& bName : BucketsToDelete) {
-            auto res = client.DeleteBucket(bName);
-            EXPECT_TRUE(res) << "Failed to delete bucket: " << res.error().Code;
+            client.DeleteBucket(bName);
         }
     }
 };

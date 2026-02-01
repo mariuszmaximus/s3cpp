@@ -19,15 +19,21 @@ find_package(CURL REQUIRED)
 # OpenSSL (SHA256)
 find_package(OpenSSL REQUIRED)
 
-add_library(s3cpplib
+add_library(s3cpplib STATIC
 	src/s3cpp/httpclient.cpp
 	src/s3cpp/auth.cpp
 	src/s3cpp/xml.hpp
 	src/s3cpp/types.h
 	src/s3cpp/s3.cpp
+	src/s3cpp/s3api.cpp
 )
-target_include_directories(s3cpplib PUBLIC src)
+target_include_directories(s3cpplib PUBLIC src include)
 target_link_libraries(s3cpplib PUBLIC CURL::libcurl OpenSSL::Crypto)
+
+set_target_properties(s3cpplib PROPERTIES
+	OUTPUT_NAME "s3cpp"
+	ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+)
 add_executable(s3cpp_app main.cpp)
 target_link_libraries(s3cpp_app s3cpplib)
 

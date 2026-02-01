@@ -1,0 +1,4 @@
+module S3CppKit {
+    umbrella header "s3api.h"
+    export *
+}
