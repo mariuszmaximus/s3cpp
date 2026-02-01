@@ -27,6 +27,24 @@ protected:
 
         return;
     }
+
+    static void TearDownTestSuite() {
+        // Remove stale data that was created by the test-suite
+        // so we can re-run the suite as many times as we want
+        S3Client client = S3Client("minio_access", "minio_secret", "127.0.0.1:9000", S3AddressingStyle::PathStyle);
+
+        // This buckets *are* empty, therefore we won't trigger a paginator
+        // if they fill in at some point in the future, this will throw error
+        std::vector<std::string> BucketsToDelete {
+            "test-bucket-s3cpp",
+            "test-bucket-location",
+            "test-bucket-tags"
+        };
+        for (const std::string& bName : BucketsToDelete) {
+            auto res = client.DeleteBucket(bName);
+            EXPECT_TRUE(res) << "Failed to delete bucket: " << res.error().Code;
+        }
+    }
 };
 
 TEST_F(S3, ListObjectsBucket) {
