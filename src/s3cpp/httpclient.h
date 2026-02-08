@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <expected>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -137,7 +138,7 @@ protected:
 class HttpRequest : public HttpRequestBase<HttpRequest> {
 public:
     using HttpRequestBase::HttpRequestBase;
-    HttpResponse execute();
+    std::expected<HttpResponse, std::string> execute();
 };
 
 // POST/PUT
@@ -155,7 +156,7 @@ public:
 
     const std::string& getBody() const { return body_; }
 
-    HttpResponse execute();
+    std::expected<HttpResponse, std::string> execute();
 
 private:
     std::string body_ = "";
@@ -235,10 +236,10 @@ private:
 
     // main logic to perform the request
     // this is invoked by HttpRequest
-    HttpResponse execute_get(HttpRequest& request);
-    HttpResponse execute_head(HttpRequest& request);
-    HttpResponse execute_post(HttpBodyRequest& request);
-    HttpResponse execute_delete(HttpBodyRequest& request);
+	 std::expected<HttpResponse, std::string> execute_get(HttpRequest& request);
+    std::expected<HttpResponse, std::string> execute_head(HttpRequest& request);
+    std::expected<HttpResponse, std::string> execute_post(HttpBodyRequest& request);
+    std::expected<HttpResponse, std::string> execute_delete(HttpBodyRequest& request);
 
     const std::unordered_map<std::string, std::string>& getHeaders() const {
         return headers_;

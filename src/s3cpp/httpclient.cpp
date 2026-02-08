@@ -1,23 +1,24 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include <expected>
 #include <format>
 #include <s3cpp/httpclient.h>
 #include <stdexcept>
 #include <string>
 
 // Route to its HttpMethod
-HttpResponse HttpRequest::execute() {
+std::expected<HttpResponse, std::string> HttpRequest::execute() {
     switch (this->http_method_) {
     case HttpMethod::Get:
         return client_.execute_get(*this);
     case HttpMethod::Head:
         return client_.execute_head(*this);
     default:
-        throw std::runtime_error(std::format("No matching enum Http Method"));
+        return std::unexpected<std::string>("No matching enum Http Method");
     }
 }
 
-HttpResponse HttpBodyRequest::execute() {
+std::expected<HttpResponse, std::string> HttpBodyRequest::execute() {
     switch (this->http_method_) {
     case HttpMethod::Post:
         return client_.execute_post(*this);
@@ -26,16 +27,15 @@ HttpResponse HttpBodyRequest::execute() {
     case HttpMethod::Delete:
         return client_.execute_delete(*this);
     default:
-        throw std::runtime_error(std::format("No matching enum Http Method"));
+        return std::unexpected<std::string>("No matching enum Http Method");
     }
 }
 
-HttpResponse HttpClient::execute_get(HttpRequest& request) {
+std::expected<HttpResponse, std::string> HttpClient::execute_get(HttpRequest& request) {
     if (!curl_handle) {
-        throw std::runtime_error(
-            // this can happen both when cURL handle is not initialized or when it
-            // is invalidated in the HTTPClient copy constructor
-            "cURL handle is invalid");
+        // this can happen both when cURL handle is not initialized or when it
+        // is invalidated in the HTTPClient copy constructor
+        return std::unexpected<std::string>("cURL handle is invalid");
     }
     std::string body_buf;
     std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -74,8 +74,7 @@ HttpResponse HttpClient::execute_get(HttpRequest& request) {
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        throw std::runtime_error(
-            std::format("libcurl error: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -86,12 +85,11 @@ HttpResponse HttpClient::execute_get(HttpRequest& request) {
         std::move(headers_buf));
 }
 
-HttpResponse HttpClient::execute_head(HttpRequest& request) {
+std::expected<HttpResponse, std::string> HttpClient::execute_head(HttpRequest& request) {
     if (!curl_handle) {
-        throw std::runtime_error(
-            // this can happen both when cURL handle is not initialized or when it
-            // is invalidated in the HTTPClient copy constructor
-            "cURL handle is invalid");
+        // this can happen both when cURL handle is not initialized or when it
+        // is invalidated in the HTTPClient copy constructor
+        return std::unexpected<std::string>("cURL handle is invalid");
     }
     std::map<std::string, std::string, LowerCaseCompare> headers_buf;
     std::string error_buf;
@@ -117,8 +115,7 @@ HttpResponse HttpClient::execute_head(HttpRequest& request) {
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        throw std::runtime_error(
-            std::format("libcurl error for request: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -128,12 +125,11 @@ HttpResponse HttpClient::execute_head(HttpRequest& request) {
     return HttpResponse(static_cast<int>(response_code), std::move(headers_buf));
 }
 
-HttpResponse HttpClient::execute_post(HttpBodyRequest& request) {
+std::expected<HttpResponse, std::string> HttpClient::execute_post(HttpBodyRequest& request) {
     if (!curl_handle) {
-        throw std::runtime_error(
-            // this can happen both when cURL handle is not initialized or when it
-            // is invalidated in the HTTPClient copy constructor
-            "cURL handle is invalid");
+        // this can happen both when cURL handle is not initialized or when it
+        // is invalidated in the HTTPClient copy constructor
+        return std::unexpected<std::string>("cURL handle is invalid");
     }
     std::string body_buf;
     std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -178,8 +174,7 @@ HttpResponse HttpClient::execute_post(HttpBodyRequest& request) {
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        throw std::runtime_error(
-            std::format("libcurl error for request: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -190,12 +185,11 @@ HttpResponse HttpClient::execute_post(HttpBodyRequest& request) {
         std::move(headers_buf));
 }
 
-HttpResponse HttpClient::execute_delete(HttpBodyRequest& request) {
+std::expected<HttpResponse, std::string> HttpClient::execute_delete(HttpBodyRequest& request) {
     if (!curl_handle) {
-        throw std::runtime_error(
-            // this can happen both when cURL handle is not initialized or when it
-            // is invalidated in the HTTPClient copy constructor
-            "cURL handle is invalid");
+        // this can happen both when cURL handle is not initialized or when it
+        // is invalidated in the HTTPClient copy constructor
+        return std::unexpected<std::string>("cURL handle is invalid");
     }
     std::string body_buf;
     std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -235,8 +229,7 @@ HttpResponse HttpClient::execute_delete(HttpBodyRequest& request) {
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        throw std::runtime_error(
-            std::format("libcurl error for request: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code

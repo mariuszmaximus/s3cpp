@@ -114,18 +114,16 @@ TEST(AUTH, MinIOBasicRequest) {
                           .header("X-Amz-Content-Sha256", empty_payload_hash);
     signer.sign(req);
 
-    try {
-        HttpResponse resp = req.execute();
-        EXPECT_EQ(resp.status(), 200);
-    } catch (const std::exception& e) {
-        // Our exception in the GitHub CI will be "Couldn't connect to server"
-        // will be exactly returned as a runtime error like so:
-        // `libcurl error: Couldn't connect to server`
-        const std::string emsg = e.what();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        // Our error in the GitHub CI will be "Couldn't connect to server"
+        const std::string emsg = result.error();
         // CI has a different libcurl version xd
         if (emsg == "libcurl error: Could not connect to server" || emsg == "libcurl error: Couldn't connect to server") {
             GTEST_SKIP_("Skipping MinIOBasicRequest: Server not up");
         }
-        throw;
+        FAIL() << "Request failed: " << emsg;
     }
+    HttpResponse resp = result.value();
+    EXPECT_EQ(resp.status(), 200);
 }

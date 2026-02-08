@@ -36,7 +36,11 @@ std::expected<ListObjectsResult, Error> S3Client::ListObjects(const std::string&
         req.header("x-amz-request-payer", options.RequestPayer.value());
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     const std::vector<XMLNode>& XMLBody = Parser.parse(res.body());
 
@@ -73,7 +77,11 @@ std::expected<ListAllMyBucketsResult, Error> S3Client::ListBuckets(const ListBuc
     HttpRequest req = Client.get(url).header("Host", endpoint_);
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     const std::vector<XMLNode>& XMLBody = Parser.parse(res.body());
 
@@ -274,7 +282,11 @@ std::expected<std::string, Error> S3Client::GetObject(const std::string& bucket,
         req.header("If-Unmodified-Since", options.If_Unmodified_Since.value());
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.is_ok()) {
         return res.body();
@@ -295,7 +307,11 @@ std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string& buc
     // ...
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.is_ok()) {
         return deserializePutObjectResult(res.headers());
@@ -328,7 +344,11 @@ std::expected<DeleteObjectResult, Error> S3Client::DeleteObject(const std::strin
         req.header("x-amz-if-match-size", options.If_MatchSize.value());
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.is_ok()) {
         return deserializeDeleteObjectResult(res.headers());
@@ -402,7 +422,11 @@ std::expected<CreateBucketResult, Error> S3Client::CreateBucket(
     req.body(std::move(createBucketReqBodyXML));
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.is_ok()) {
         return deserializeCreateBucketResult(res.headers());
@@ -421,7 +445,11 @@ std::expected<void, Error> S3Client::DeleteBucket(const std::string& bucket, con
         req.header("x-amz-expected-bucket-owner", std::move(options.ExpectedBucketOwner.value()));
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.status() == 204) {
         return {};
@@ -440,7 +468,11 @@ std::expected<HeadBucketResult, Error> S3Client::HeadBucket(const std::string& b
         req.header("x-amz-expected-bucket-owner", std::move(options.ExpectedBucketOwner.value()));
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.status() == 200) {
         return deserializeHeadBucketResult(res.headers());
@@ -532,7 +564,11 @@ std::expected<HeadObjectResult, Error> S3Client::HeadObject(const std::string& b
         req.header("x-amz-server-side-encryption-customer-key-MD5", options.SideEncryptionCustomerKeyMD5.value());
 
     Signer.sign(req);
-    HttpResponse res = req.execute();
+    auto result = req.execute();
+    if (!result.has_value()) {
+        return std::unexpected<Error>(Error { .Code = "HttpError", .Message = result.error() });
+    }
+    HttpResponse res = result.value();
 
     if (res.status() == 200) {
         return deserializeHeadObjectResult(res.headers());

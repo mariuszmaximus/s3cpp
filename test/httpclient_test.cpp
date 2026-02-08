@@ -13,8 +13,10 @@
 TEST(HTTP, AllStatusCodes) {
     HttpClient client {};
     for (auto i : { 200, 400, 401, 403, 404, 500, 502 }) {
-        HttpResponse request = client.get(std::format("https://postman-echo.com/status/{}", i))
+        auto result = client.get(std::format("https://postman-echo.com/status/{}", i))
                                    .execute();
+        ASSERT_TRUE(result.has_value());
+        HttpResponse request = result.value();
         EXPECT_EQ(request.status(), i);
         EXPECT_EQ(request.is_ok(), (i >= 200 && i < 300));
         EXPECT_EQ(request.is_client_error(), (i >= 400 && i < 500));
@@ -37,26 +39,30 @@ TEST(HTTP, HTTPClientMoveOwnership) {
 
     const std::string URL = "https://postman-echo.com/status/200";
 
-    // Invalidated client1 should throw runtime error
-    EXPECT_THROW(client1.get(URL).execute(), std::runtime_error);
-    EXPECT_EQ(client2.get(URL).execute().status(), 200);
+    // Invalidated client1 should return error
+    auto result1 = client1.get(URL).execute();
+    EXPECT_FALSE(result1.has_value());
+    EXPECT_THAT(result1.error(), testing::HasSubstr("cURL handle is invalid"));
+
+    auto result2 = client2.get(URL).execute();
+    ASSERT_TRUE(result2.has_value());
+    EXPECT_EQ(result2.value().status(), 200);
 }
 
 TEST(HTTP, HTTPBodyNonEmpty) {
     HttpClient client {};
-    HttpResponse request = client.get("https://postman-echo.com/get?foo=bar").execute();
+    auto result = client.get("https://postman-echo.com/get?foo=bar").execute();
+    ASSERT_TRUE(result.has_value());
+    HttpResponse request = result.value();
     EXPECT_TRUE(request.is_ok());
     EXPECT_THAT(request.body(), testing::HasSubstr("\"foo\":\"bar\""));
 }
 
 TEST(HTTP, HTTPHandleTimeout) {
     HttpClient client {};
-    try {
-        auto response = client.get("https://postman-echo.com/delay/10").timeout(1).execute();
-        FAIL() << "Client not handling 1s timeout on a 10s delayed request";
-    } catch (const std::exception& e) {
-        SUCCEED(); // libcurl error for request: Timeout was reached
-    }
+    auto result = client.get("https://postman-echo.com/delay/10").timeout(1).execute();
+    EXPECT_FALSE(result.has_value());
+    EXPECT_THAT(result.error(), testing::HasSubstr("Timeout"));
 }
 
 TEST(HTTP, HTTPRequestInDifferentPhases) {
@@ -64,18 +70,17 @@ TEST(HTTP, HTTPRequestInDifferentPhases) {
     // TODO(cristian): Allow for floating points on timeout?
     HttpRequest req = client.get("https://postman-echo.com/get").timeout(1);
     auto responses = std::vector<HttpResponse> {};
-    try {
-        HttpResponse resp1 = req.execute();
-        responses.push_back(resp1);
-    } catch (const std::exception& e) {
-        SUCCEED(); // libcurl error for request: Timeout was reached
+
+    auto result1 = req.execute();
+    if (result1.has_value()) {
+        responses.push_back(result1.value());
     }
-    try {
-        HttpResponse resp2 = req.execute();
-        responses.push_back(resp2);
-    } catch (const std::exception& e) {
-        SUCCEED(); // libcurl error for request: Timeout was reached
+
+    auto result2 = req.execute();
+    if (result2.has_value()) {
+        responses.push_back(result2.value());
     }
+
     ASSERT_EQ(responses.size(), 2);
     ASSERT_EQ(responses[0].status(), responses[1].status());
     ASSERT_EQ(responses[0].body(), responses[1].body());
@@ -110,7 +115,9 @@ TEST(HTTP, HTTPClientDefaultHeadersOverwrittenByRequestHeaders) {
                                   .timeout(10)
                                   .header("User-Agent", val);
 
-        auto resp = request.execute();
+        auto result = request.execute();
+        ASSERT_TRUE(result.has_value());
+        auto resp = result.value();
 
         // request should work + having the new user-agent header each time
         EXPECT_TRUE(resp.is_ok());
@@ -130,24 +137,30 @@ TEST(HTTP, HTTPRemoveHeader) {
     // request one, the client one should also be removed!
 
     // Removes the User-Agent header
-    auto resp = client.get("https://postman-echo.com/get")
+    auto result = client.get("https://postman-echo.com/get")
                     .timeout(10)
                     .header("User-Agent", "")
                     .execute();
+    ASSERT_TRUE(result.has_value());
+    auto resp = result.value();
     EXPECT_THAT(resp.body(),
         testing::Not(testing::HasSubstr("\"user-agent\":\"client\"")));
 }
 
 TEST(HTTP, HTTPHead) {
     HttpClient client {};
-    HttpResponse resp = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    auto result = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    ASSERT_TRUE(result.has_value());
+    HttpResponse resp = result.value();
     EXPECT_TRUE(resp.body().empty());
     EXPECT_FALSE(resp.headers().empty());
 }
 
 TEST(HTTP, HTTPHeadStatusCode) {
     HttpClient client {};
-    HttpResponse resp = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    auto result = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    ASSERT_TRUE(result.has_value());
+    HttpResponse resp = result.value();
     EXPECT_TRUE(resp.is_ok());
     EXPECT_EQ(resp.status(), 200);
     EXPECT_TRUE(resp.body().empty());
@@ -156,11 +169,15 @@ TEST(HTTP, HTTPHeadStatusCode) {
 
 TEST(HTTP, HTTPHeaderOrder) {
     HttpClient client {};
-    HttpResponse resp1 = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    auto result1 = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    ASSERT_TRUE(result1.has_value());
+    HttpResponse resp1 = result1.value();
     EXPECT_TRUE(resp1.body().empty());
     EXPECT_FALSE(resp1.headers().empty());
 
-    HttpResponse resp2 = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    auto result2 = client.head("https://postman-echo.com/get?foo0=bar1&foo2=bar2").execute();
+    ASSERT_TRUE(result2.has_value());
+    HttpResponse resp2 = result2.value();
     EXPECT_TRUE(resp2.body().empty());
     EXPECT_FALSE(resp2.headers().empty());
 
@@ -182,7 +199,9 @@ TEST(HTTP, HTTPPost) {
     std::string data = "This is expected to be sent back as part of response body";
     HttpBodyRequest req = client.post("https://postman-echo.com/post").body(data);
     EXPECT_EQ(req.getBody(), data);
-    HttpResponse resp = req.execute();
+    auto result = req.execute();
+    ASSERT_TRUE(result.has_value());
+    HttpResponse resp = result.value();
     EXPECT_TRUE(resp.is_ok());
     EXPECT_EQ(resp.status(), 200);
     EXPECT_THAT(resp.body(), testing::HasSubstr(data));
@@ -207,7 +226,9 @@ TEST(HTTP, HTTPPut) {
     std::string data = "This is expected to be sent back as part of response body";
     HttpBodyRequest req = client.post("https://postman-echo.com/post").body(data);
     EXPECT_EQ(req.getBody(), data);
-    HttpResponse resp = req.execute();
+    auto result = req.execute();
+    ASSERT_TRUE(result.has_value());
+    HttpResponse resp = result.value();
     EXPECT_TRUE(resp.is_ok());
     EXPECT_EQ(resp.status(), 200);
     EXPECT_THAT(resp.body(), testing::HasSubstr(data));
