@@ -25,7 +25,6 @@ add_library(s3cpplib STATIC
 	src/s3cpp/xml.hpp
 	src/s3cpp/types.h
 	src/s3cpp/s3.cpp
-	src/s3cpp/s3api.cpp
 )
 target_include_directories(s3cpplib PUBLIC src include)
 target_link_libraries(s3cpplib PUBLIC CURL::libcurl OpenSSL::Crypto)
