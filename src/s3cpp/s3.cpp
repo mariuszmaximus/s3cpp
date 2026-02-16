@@ -607,7 +607,7 @@ Error S3Client::deserializeError(const std::vector<XMLNode>& nodes) {
         } else if (node.tag == "Error.Resource") {
             error.Resource = std::move(node.value);
         } else if (node.tag == "Error.RequestId") {
-            error.RequestId = Parser.parseNumber<int>(std::move(node.value));
+            error.RequestId = std::move(node.value);
         } else {
             continue;
         }

@@ -184,7 +184,7 @@ public:
 
     template <typename T>
     T parseNumber(const std::string s) {
-        int code;
+        T code;
         std::from_chars_result result;
         int base = 10;
 
@@ -204,7 +204,7 @@ public:
         }
 
         if (result.ec == std::errc {}) {
-            return static_cast<T>(code);
+            return code;
         }
         throw std::runtime_error(std::format("Unable to parse number from '{}'", s));
     }

@@ -74,7 +74,7 @@ std::expected<HttpResponse, std::string> HttpClient::execute_get(HttpRequest& re
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error on execute_get: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -115,7 +115,7 @@ std::expected<HttpResponse, std::string> HttpClient::execute_head(HttpRequest& r
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error execute_head: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -174,7 +174,7 @@ std::expected<HttpResponse, std::string> HttpClient::execute_post(HttpBodyReques
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error execute_post: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code
@@ -229,7 +229,7 @@ std::expected<HttpResponse, std::string> HttpClient::execute_delete(HttpBodyRequ
     CURLcode code = curl_easy_perform(curl_handle);
     curl_slist_free_all(list);
     if (code != CURLE_OK) {
-        return std::unexpected<std::string>(std::format("libcurl error: {}", curl_easy_strerror(code)));
+        return std::unexpected<std::string>(std::format("libcurl error execute_delete: {}", curl_easy_strerror(code)));
     }
 
     // get HTTP code

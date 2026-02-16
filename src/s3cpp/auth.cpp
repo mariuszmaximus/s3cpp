@@ -13,18 +13,27 @@
 
 template <typename T>
 void AWSSigV4Signer::sign(HttpRequestBase<T>& request) {
-    // Autorization
-    const std::string hash_algo = "AWS4-HMAC-SHA256";
+    // For anonymous requests (empty credentials), only add required headers but skip Authorization
+    const bool is_anonymous = access_key.empty() || secret_key.empty();
 
-    // Compute payload hash and set header ONLY for body requests
+    // Compute payload hash and set header for all requests
     std::string payload_hash;
     if constexpr (std::is_same_v<T, HttpBodyRequest>) {
         const std::string& body = static_cast<HttpBodyRequest&>(request).getBody();
         payload_hash = hex(sha256(body));
-        request.header("x-amz-content-sha256", payload_hash);
     } else {
+        // Empty payload hash for GET/HEAD requests
         payload_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     }
+    request.header("x-amz-content-sha256", payload_hash);
+
+    // Skip signing for anonymous requests
+    if (is_anonymous) {
+        return;
+    }
+
+    // Autorization
+    const std::string hash_algo = "AWS4-HMAC-SHA256";
 
     // Compute date and add it as a header
     const std::string timestamp = this->getTimestamp();
