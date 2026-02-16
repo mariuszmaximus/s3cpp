@@ -296,5 +296,5 @@ struct Error {
     std::string Code;
     std::string Message;
     std::string Resource;
-    int RequestId;
+    std::string RequestId;
 };
