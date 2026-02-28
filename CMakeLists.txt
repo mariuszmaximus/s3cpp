@@ -26,7 +26,7 @@ add_library(s3cpplib STATIC
 	src/s3cpp/types.h
 	src/s3cpp/s3.cpp
 )
-target_include_directories(s3cpplib PUBLIC src include)
+target_include_directories(s3cpplib PUBLIC src)
 target_link_libraries(s3cpplib PUBLIC CURL::libcurl OpenSSL::Crypto)
 
 set_target_properties(s3cpplib PROPERTIES
@@ -43,6 +43,7 @@ add_executable(tests
 	test/auth_test.cpp
 	test/xml_test.cpp
 	test/s3_test.cpp
+	test/aws_test.cpp
 )
 
 target_link_libraries(tests s3cpplib GTest::gtest_main GTest::gmock_main CURL::libcurl OpenSSL::Crypto)

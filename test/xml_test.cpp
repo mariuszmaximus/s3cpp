@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <s3cpp/xml.hpp>
 
+using namespace s3cpp;
+
 TEST(XML, XMLBasicTag) {
     // <Bucket>Name</Bucket>
     auto parser = XMLParser();

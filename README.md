@@ -15,9 +15,9 @@ A lightweight C++ client library for AWS S3, with zero 3rd party C++ dependencie
 
 Each S3 Client is organized onto modular components:
 
-- `src/s3cpp/httpclient`: HTTP/1.1 client built on libCurl
-- `src/s3cpp/auth`: AWS Signature V4 auth protocol (SigV4a pending)
-- `src/s3cpp/xml`: A custom FSM for parsing XML
+- `src/s3cpp/httpclient`
+- `src/s3cpp/auth`: AWS Signature V4 auth protocol
+- `src/s3cpp/xml`: A custom FSM for parsing valid XML
 
 ## Basic Usage
 
@@ -27,7 +27,7 @@ Create a bucket:
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("access_key", "secret_key");
+    s3cpp::S3Client client("access_key", "secret_key");
 
     auto result = client.CreateBucket("my-bucket", {
         .LocationConstraint = "us-east-1"
@@ -47,7 +47,7 @@ List all buckets:
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("access_key", "secret_key");
+    s3cpp::S3Client client("access_key", "secret_key");
 
     auto result = client.ListBuckets();
 
@@ -69,7 +69,7 @@ List objects in a bucket:
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("access_key", "secret_key");
+    s3cpp::S3Client client("access_key", "secret_key");
 
     // List 100 objects with a prefix
     auto result = client.ListObjects("my-bucket", {
@@ -95,13 +95,13 @@ For buckets with many objects, use the paginator to automatically handle continu
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("access_key", "secret_key");
-    ListObjectsPaginator paginator(client, "my-bucket", "path/to/", 100);
+    s3cpp::S3Client client("access_key", "secret_key");
+    s3cpp::ListObjectsPaginator paginator(client, "my-bucket", "path/to/", 100);
 
     int totalObjects = 0;
 
     while (paginator.HasMorePages()) {
-        std::expected<ListObjectsResult, Error> page = paginator.NextPage();
+        std::expected<s3cpp::ListObjectsResult, s3cpp::Error> page = paginator.NextPage();
 
         if (!page) {
             std::println("Error: {}", page.error().Message);
@@ -123,13 +123,13 @@ Checking if a bucket exists:
 ```cpp
 #include <s3cpp/s3.h>
 
-bool BucketExists(S3Client& client, const std::string& bucketName) {
+bool BucketExists(s3cpp::S3Client& client, const std::string& bucketName) {
     auto result = client.HeadBucket(bucketName);
     return result.has_value();
 }
 
 int main() {
-    S3Client client("access_key", "secret_key");
+    s3cpp::S3Client client("access_key", "secret_key");
     
     if (BucketExists(client, "my-bucket")) {
         std::println("Bucket exists");
@@ -147,10 +147,10 @@ Delete a non-empty bucket:
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("access_key", "secret_key");
+    s3cpp::S3Client client("access_key", "secret_key");
 
     // To delete a bucket we first need to delete all its contents
-    ListObjectsPaginator paginator(client, "my-bucket", "", 1000);
+    s3cpp::ListObjectsPaginator paginator(client, "my-bucket", "", 1000);
 
     while (paginator.HasMorePages()) {
         auto page = paginator.NextPage();
@@ -199,4 +199,4 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
   server /data --console-address ":9001"
 ```
 
-The full test suite contains 60 tests
+The full test suite contains 62 tests

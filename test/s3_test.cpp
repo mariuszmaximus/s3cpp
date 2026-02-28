@@ -2,6 +2,8 @@
 #include <s3cpp/s3.h>
 #include <string>
 
+using namespace s3cpp;
+
 class S3 : public ::testing::Test {
     // Setup a MinIO bucket with some contents already
 protected:

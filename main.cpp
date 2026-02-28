@@ -2,13 +2,14 @@
 #include <s3cpp/s3.h>
 
 int main() {
-    S3Client client("minio_access", "minio_secret");
-    ListObjectsPaginator paginator(client, "my-bucket", "path/to/", 100);
+    s3cpp::S3Client client("minio_access", "minio_secret");
+    s3cpp::ListObjectsPaginator paginator(client, "my-bucket", "path/to/", 100);
 
     int totalObjects = 0;
 
     while (paginator.HasMorePages()) {
-        std::expected<ListObjectsResult, Error> page = paginator.NextPage();
+        std::expected<s3cpp::ListObjectsResult, s3cpp::Error> page =
+            paginator.NextPage();
 
         if (!page) {
             std::println("Error: {}", page.error().Message);

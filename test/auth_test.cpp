@@ -3,6 +3,8 @@
 #include <s3cpp/auth.h>
 #include <s3cpp/httpclient.h>
 
+using namespace s3cpp;
+
 TEST(AUTH, SHA256HexDigest) {
     auto signer = AWSSigV4Signer("minio_access", "minio_secret");
     EXPECT_EQ(signer.hex(signer.sha256("github.com/ggcr/s3cpp")),

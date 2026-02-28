@@ -1,14 +1,14 @@
 #include <chrono>
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include <exception>
 #include <format>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <s3cpp/httpclient.h>
-#include <stdexcept>
 #include <string>
 #include <type_traits>
+
+using namespace s3cpp;
 
 TEST(HTTP, AllStatusCodes) {
     HttpClient client {};

@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+namespace s3cpp {
+
 enum class S3AddressingStyle {
     VirtualHosted,
     PathStyle
@@ -298,3 +300,5 @@ struct Error {
     std::string Resource;
     std::string RequestId;
 };
+
+} // namespace s3cpp
