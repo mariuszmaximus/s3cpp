@@ -129,3 +129,4 @@ TEST(AUTH, MinIOBasicRequest) {
     HttpResponse resp = result.value();
     EXPECT_EQ(resp.status(), 200);
 }
+

@@ -26,3 +26,4 @@ TEST(AWS, AWSAnonymousCredsListBucket) {
     EXPECT_EQ(res->Contents[1].Size, 4579163978);
     EXPECT_EQ(res->Contents[1].StorageClass, "STANDARD");
 }
+

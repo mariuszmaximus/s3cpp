@@ -1,3 +1,6 @@
+#ifndef S3CPP_S3
+#define S3CPP_S3
+
 #include <expected>
 #include <s3cpp/auth.h>
 #include <s3cpp/httpclient.h>
@@ -149,4 +152,7 @@ private:
   bool hasMorePages_ = true;
   std::string continuationToken_;
 };
-} // namespace s3cpp
+
+} // namespace S3CPP_S3
+
+#endif 

@@ -30,6 +30,7 @@ public:
   std::string hex(const unsigned char *hash);
   std::string url_encode(const std::string &value);
   std::string getTimestamp();
+  [[nodiscard]] std::string getRegion() { return aws_region; }
 
 private:
   std::string access_key;
