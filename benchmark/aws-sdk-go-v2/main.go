@@ -6,10 +6,10 @@ package main
 import "C"
 import "unsafe"
 
-// export get_object
+//export get_object
 func get_object(key *C.char) *C.char {
 	k := C.GoString(key)
-	s := "Hello from Go! Key: " + k
+	s := "go: Key: " + k
 	return C.CString(s)
 }
 
