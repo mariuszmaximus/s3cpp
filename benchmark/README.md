@@ -1,19 +1,19 @@
 # Benchmark
 
-This directory benchmarks multiple S3 client implementations by lowering them all to a shared C ABI and loading them as shared libraries at runtime
-
-The idea is:
-
-- each implementation exports the same symbols, currently `initClient` and `get_object`
-- each implementation is compiled into its own shared library in `build/`
-- the host test/benchmark code loads those libraries with `dlopen`/`dlsym`
-- once everything looks the same at the ABI boundary, the host can exercise all implementations uniformly
-
-This keeps the benchmark harness language-agnostic. The host does not need to know whether the underlying implementation was written in C++, Go, or something else. It only cares that the shared library exports the expected symbols with the expected ABI.
+This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a tiny C ABI and loading them as shared libraries at runtime
 
 ## Prerequisite
 
-A local MinIO instance is expected to be running already. The current `test.cpp` uses `s3cpp` itself as a preamble to create basic scaffolding for the tests before calling each shared library implementation.
+A local MinIO instance is expected to be running already. The current `test.cpp` uses `s3cpp` itself as a preamble to create basic scaffolding for the tests before calling each shared library implementation
+
+```bash
+$ docker build -t s3cpp-minio:latest ..
+$ docker run -d -p 9000:9000 -p 9001:9001 \
+      -e "MINIO_ROOT_USER=minio_access" \
+      -e "MINIO_ROOT_PASSWORD=minio_secret" \
+      s3cpp-minio:latest \
+      server /data --console-address ":9001"
+```
 
 ## Usage
 
