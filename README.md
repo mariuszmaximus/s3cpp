@@ -191,7 +191,7 @@ cmake --build build
 Some tests require a local MinIO container to be running:
 
 ```bash
-$ docker build .
+$ docker build -t s3cpp-minio:latest .
 $ docker run -d -p 9000:9000 -p 9001:9001 \
   -e "MINIO_ROOT_USER=minio_access" \
   -e "MINIO_ROOT_PASSWORD=minio_secret" \
