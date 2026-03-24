@@ -1,5 +1,7 @@
 # Benchmark
 
+Work in progress
+
 This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a tiny C ABI and loading them as shared libraries at runtime
 
 ## Prerequisite
@@ -31,4 +33,4 @@ make test
 
 ## Notes
 
-- Benchmark infra is inspired by @strager work [Faster than Rust and C++: the PERFECT hash table](https://www.youtube.com/watch?v=DMQ_HcNSOAI) video ([code](https://github.com/strager/perfect-hash-tables))
+- Benchmark infra is inspired by [@strager](https://www.github.com/strager) work [Faster than Rust and C++: the PERFECT hash table](https://www.youtube.com/watch?v=DMQ_HcNSOAI) video ([code](https://github.com/strager/perfect-hash-tables))
