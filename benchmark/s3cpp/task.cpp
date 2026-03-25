@@ -25,8 +25,7 @@ static std::string do_get_object(bench::ClientHandle handle, const char *key) {
 }
 
 // ABI
-extern "C" bench::ClientHandle initClient(const char *access,
-                                          const char *secret,
+extern "C" bench::ClientHandle initClient(const char *access, const char *secret,
                                           const char *endpoint) noexcept {
   auto handle = initialize_client(access, secret, endpoint);
   return handle;
