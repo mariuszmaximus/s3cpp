@@ -22,13 +22,15 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
 Build all currently enabled shared libraries:
 
 ```bash
-make
+$ make
 ```
 
 Tests that shared libraries are built:
 ```bash
-make test
-./build/test
+$ make test
+$ ./build/test
+  ...
+  Good to go!
 ```
 
 ## Notes

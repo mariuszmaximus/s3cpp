@@ -18,6 +18,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"strings"
 )
 
 var p runtime.Pinner // yolo
@@ -38,9 +40,32 @@ func initialize_client(access, secret, endpoint string) *s3.Client {
 	return client
 }
 
-func do_get_object(client *s3.Client, key string) string {
+func do_create_bucket(client *s3.Client, bucket string) {
+	_, err := client.CreateBucket(context.TODO(), &s3.CreateBucketInput{
+		Bucket:                    aws.String(bucket),
+		CreateBucketConfiguration: &s3types.CreateBucketConfiguration{},
+	})
+	if err != nil {
+		fmt.Printf("fatal: go create_bucket %v\n", err.Error())
+		os.Exit(1)
+	}
+}
+
+func do_put_object(client *s3.Client, bucket, key, contents string) {
+	_, err := client.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   strings.NewReader(contents),
+	})
+	if err != nil {
+		fmt.Printf("fatal: go put_object %v\n", err.Error())
+		os.Exit(1)
+	}
+}
+
+func do_get_object(client *s3.Client, bucket, key string) string {
 	result, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String("bucket"),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
@@ -56,8 +81,8 @@ func do_get_object(client *s3.Client, key string) string {
 	return string(content[:])
 }
 
-//export initClient
-func initClient(access *C.char, secret *C.char, endpoint *C.char) unsafe.Pointer {
+//export init_client
+func init_client(access *C.char, secret *C.char, endpoint *C.char) unsafe.Pointer {
 	accessStr := C.GoString(access)
 	secretStr := C.GoString(secret)
 	endpointStr := C.GoString(endpoint)
@@ -71,12 +96,27 @@ func initClient(access *C.char, secret *C.char, endpoint *C.char) unsafe.Pointer
 	return h_ptr
 }
 
-//export get_object
-func get_object(handle unsafe.Pointer, key *C.char) *C.char {
+//export create_bucket
+func create_bucket(handle unsafe.Pointer, bucketName *C.char) {
 	defer p.Unpin()
 	h := *(*cgo.Handle)(handle)
+	do_create_bucket(h.Value().(*s3.Client), C.GoString(bucketName))
+}
+
+//export put_object
+func put_object(handle unsafe.Pointer, bucket *C.char, key *C.char, contents *C.char) {
+	defer p.Unpin()
+	h := *(*cgo.Handle)(handle)
+	do_put_object(h.Value().(*s3.Client), C.GoString(bucket), C.GoString(key), C.GoString(contents))
+}
+
+//export get_object
+func get_object(handle unsafe.Pointer, bucket *C.char, key *C.char) *C.char {
+	defer p.Unpin()
+	h := *(*cgo.Handle)(handle)
+	bucketStr := C.GoString(bucket)
 	keyStr := C.GoString(key)
-	contents := do_get_object(h.Value().(*s3.Client), keyStr)
+	contents := do_get_object(h.Value().(*s3.Client), bucketStr, keyStr)
 	return C.CString(contents)
 }
 

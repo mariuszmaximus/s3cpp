@@ -1,45 +1,84 @@
 #include "implementations.h"
 #include <s3cpp/s3.h>
 #include "tasks.h"
+#include <cstring>
+#include <print>
 
 namespace s3b {
 
-void preamble(const std::string &bucket, const std::string &key, const std::string &value) {
-  auto bucketExists = [](s3cpp::S3Client &c, const std::string b) -> bool {
-    auto result = c.HeadBucket(b);
-    return result.has_value();
-  };
-  // Push a dummy bucket with some text to test that all SO can read
+void preamble() {
   auto client = s3cpp::S3Client("minio_access", "minio_secret", "127.0.0.1:9000", s3cpp::S3AddressingStyle::PathStyle);
-  if (!bucketExists(client, bucket)) {
-    auto result = client.CreateBucket("bucket");
-    if (!result && result.error().Code != "BucketAlreadyOwnedByYou") {
-      std::println("fatal(s3cpp): unable to create dummy bucket to test: {}",
-                   result.error().Message);
-      std::exit(1);
+
+  // Clean up stale buckets from previous runs
+  auto buckets = client.ListBuckets();
+  if (buckets) {
+    for (const auto &b : buckets->Buckets) {
+      // Delete all objects in the bucket first
+      auto objects = client.ListObjects(b.Name);
+      if (objects) {
+        for (const auto &obj : objects->Contents) {
+          client.DeleteObject(b.Name, obj.Key);
+        }
+      }
+      client.DeleteBucket(b.Name);
     }
   }
-  auto keyExists = [](s3cpp::S3Client &c, std::string b, std::string k) -> bool {
-    auto result = c.HeadObject(b, k);
-    return result.has_value();
-  };
-  // PUT {"foo": "bar"}
-  if (!keyExists(client, bucket, key)) {
-    auto result = client.PutObject("bucket", "foo", "bar");
-    if (!result) {
-      std::println("fatal(s3cpp): unable to put object: {}", result.error().Message);
-      std::exit(1);
-    }
+
+  // Seed a bucket with test data for get_object tests
+  auto bucket = client.CreateBucket("test-bucket");
+  if (!bucket) {
+    std::println("fatal(preamble): create_bucket {}", bucket.error().Message);
+    std::exit(1);
+  }
+
+  auto put = client.PutObject("test-bucket", "foo", "bar");
+  if (!put) {
+    std::println("fatal(preamble): put_object {}", put.error().Message);
+    std::exit(1);
   }
 }
 
-void test_get_object(const char *name, implementation impl) {
-  bench::ClientHandle handle = impl.initClient("minio_access", "minio_secret", "127.0.0.1:9000");
-  const char *contents = impl.get_object(handle, "foo");
-  if (strcmp(contents, "bar") != 0) {
-      std::println("fatal: {} failed the test for get_object", impl.name);
-      std::exit(1);
+void test_init_client(implementation impl) {
+  bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+  if (handle == nullptr) {
+    std::println("  FAIL init_client: returned nullptr");
+    std::exit(1);
   }
+  std::println("  OK init_client");
+}
+
+std::string bucket_name_for(const char *so_path) {
+  std::string_view name = so_path;
+  auto slash = name.rfind('/');
+  if (slash != std::string_view::npos) name = name.substr(slash + 1);
+  // strip lib prefix and .dylib/.so suffix
+  if (name.starts_with("lib")) name.remove_prefix(3);
+  if (name.ends_with(".dylib")) name.remove_suffix(6);
+  else if (name.ends_with(".so")) name.remove_suffix(3);
+  return "test-" + std::string(name);
+}
+
+void test_create_bucket(implementation impl, const std::string &bucket) {
+  bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+  impl.create_bucket(handle, bucket.c_str());
+  std::println("  OK create_bucket ({})", bucket);
+}
+
+void test_put_object(implementation impl, const std::string &bucket) {
+  bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+  impl.put_object(handle, bucket.c_str(), "put-test-key", "put-test-value");
+  std::println("  OK put_object");
+}
+
+void test_get_object(implementation impl) {
+  // Reads "foo" seeded by the preamble in "test-bucket"
+  bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+  const char *contents = impl.get_object(handle, "test-bucket", "foo");
+  if (std::strcmp(contents, "bar") != 0) {
+    std::println("  FAIL get_object: expected \"bar\", got \"{}\"", contents);
+    std::exit(1);
+  }
+  std::println("  OK get_object");
 }
 
 } // namespace s3b
@@ -47,11 +86,15 @@ void test_get_object(const char *name, implementation impl) {
 int main() {
   std::array<s3b::implementation, s3b::implementations_count> implementations = s3b::parse_implementations();
 
-  s3b::preamble("bucket", "foo", "bar");
+  s3b::preamble();
 
-  for (const auto &implementation : implementations) {
-    std::println("{}", implementation.name);
-    s3b::test_get_object(implementation.name, implementation);
+  for (const auto &impl : implementations) {
+    std::println("{}", impl.name);
+    s3b::test_init_client(impl);
+    std::string bucket = s3b::bucket_name_for(impl.name);
+    s3b::test_create_bucket(impl, bucket);
+    s3b::test_put_object(impl, bucket);
+    s3b::test_get_object(impl);
   }
 
   std::println("Good to go!");

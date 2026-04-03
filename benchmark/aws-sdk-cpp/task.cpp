@@ -2,7 +2,9 @@
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/s3/S3Client.h>
+#include <aws/s3/model/CreateBucketRequest.h>
 #include <aws/s3/model/GetObjectRequest.h>
+#include <aws/s3/model/PutObjectRequest.h>
 #include <print>
 #include <sstream>
 #include <string>
@@ -27,11 +29,45 @@ static bench::ClientHandle initialize_client(const char *access,
   return reinterpret_cast<bench::ClientHandle>(client);
 }
 
-static std::string do_get_object(bench::ClientHandle handle, const char *key) {
+static void do_create_bucket(bench::ClientHandle handle, const char *bucket) {
+  auto client = reinterpret_cast<Aws::S3::S3Client *>(handle);
+
+  Aws::S3::Model::CreateBucketRequest request;
+  request.SetBucket(bucket);
+
+  auto outcome = client->CreateBucket(request);
+  if (!outcome.IsSuccess()) {
+    std::println("fatal: aws-sdk-cpp create_bucket {}",
+                 outcome.GetError().GetMessage());
+    std::exit(1);
+  }
+}
+
+static void do_put_object(bench::ClientHandle handle, const char *bucket,
+                          const char *key, const char *contents) {
+  auto client = reinterpret_cast<Aws::S3::S3Client *>(handle);
+
+  Aws::S3::Model::PutObjectRequest request;
+  request.SetBucket(bucket);
+  request.SetKey(key);
+
+  auto body = Aws::MakeShared<Aws::StringStream>("PutObject");
+  *body << contents;
+  request.SetBody(body);
+
+  auto outcome = client->PutObject(request);
+  if (!outcome.IsSuccess()) {
+    std::println("fatal: aws-sdk-cpp put_object {}",
+                 outcome.GetError().GetMessage());
+    std::exit(1);
+  }
+}
+
+static std::string do_get_object(bench::ClientHandle handle, const char *bucket, const char *key) {
   auto client = reinterpret_cast<Aws::S3::S3Client *>(handle);
 
   Aws::S3::Model::GetObjectRequest request;
-  request.SetBucket("bucket");
+  request.SetBucket(bucket);
   request.SetKey(key);
 
   auto outcome = client->GetObject(request);
@@ -47,15 +83,27 @@ static std::string do_get_object(bench::ClientHandle handle, const char *key) {
 }
 
 // ABI
-extern "C" bench::ClientHandle initClient(const char *access,
+extern "C" bench::ClientHandle init_client(const char *access,
                                           const char *secret,
                                           const char *endpoint) noexcept {
   auto handle = initialize_client(access, secret, endpoint);
   return handle;
 }
 
+extern "C" void create_bucket(bench::ClientHandle handle,
+                              const char *bucket) noexcept {
+  do_create_bucket(handle, bucket);
+}
+
+extern "C" void put_object(bench::ClientHandle handle,
+                           const char *bucket, const char *key,
+                           const char *contents) noexcept {
+  do_put_object(handle, bucket, key, contents);
+}
+
 extern "C" const char *get_object(bench::ClientHandle handle,
-                                  const char *key) noexcept {
-  static thread_local std::string result = do_get_object(handle, key);
+                                  const char *bucket, const char *key) noexcept {
+  thread_local std::string result;
+  result = do_get_object(handle, bucket, key);
   return result.c_str();
 }

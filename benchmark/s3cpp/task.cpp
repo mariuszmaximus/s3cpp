@@ -14,9 +14,30 @@ static bench::ClientHandle initialize_client(const char *access,
   return reinterpret_cast<bench::ClientHandle>(client);
 }
 
-static std::string do_get_object(bench::ClientHandle handle, const char *key) {
+static void do_create_bucket(bench::ClientHandle handle, const char *bucket) {
   auto client = reinterpret_cast<S3Client *>(handle);
-  std::expected<std::string, Error> result = client->GetObject("bucket", key);
+  auto result = client->CreateBucket(bucket);
+  if (!result) {
+    std::println("fatal: s3cpp create_bucket {}", result.error().Message);
+    std::exit(1);
+  }
+  return;
+}
+
+static void do_put_object(bench::ClientHandle handle, const char *bucket,
+                          const char *key, const char *contents) {
+  auto client = reinterpret_cast<S3Client *>(handle);
+  auto result = client->PutObject(bucket, key, contents);
+  if (!result) {
+    std::println("fatal: s3cpp put_object {}", result.error().Message);
+    std::exit(1);
+  }
+  return;
+}
+
+static std::string do_get_object(bench::ClientHandle handle, const char *bucket, const char *key) {
+  auto client = reinterpret_cast<S3Client *>(handle);
+  std::expected<std::string, Error> result = client->GetObject(bucket, key);
   if (!result) {
     std::println("fatal: s3cpp get_object {}", result.error().Message);
     std::exit(1);
@@ -25,14 +46,29 @@ static std::string do_get_object(bench::ClientHandle handle, const char *key) {
 }
 
 // ABI
-extern "C" bench::ClientHandle initClient(const char *access, const char *secret,
-                                          const char *endpoint) noexcept {
+extern "C" bench::ClientHandle init_client(const char *access,
+                                           const char *secret,
+                                           const char *endpoint) noexcept {
   auto handle = initialize_client(access, secret, endpoint);
   return handle;
 }
 
+extern "C" void create_bucket(bench::ClientHandle handle,
+                              const char *bucket) noexcept {
+  do_create_bucket(handle, bucket);
+  return;
+}
+
+extern "C" void put_object(bench::ClientHandle handle,
+                                  const char *bucket, const char *key,
+                                  const char *contents) noexcept {
+  do_put_object(handle, bucket, key, contents);
+  return;
+}
+
 extern "C" const char *get_object(bench::ClientHandle handle,
-                                  const char *key) noexcept {
-  static thread_local std::string result = do_get_object(handle, key);
+                                  const char *bucket, const char *key) noexcept {
+  thread_local std::string result;
+  result = do_get_object(handle, bucket, key);
   return result.c_str();
 }

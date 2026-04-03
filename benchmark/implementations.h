@@ -19,7 +19,9 @@ constexpr std::size_t implementations_count = std::size(implementations_so);
 
 struct implementation {
   const char *name;
-  bench::initClient_f *initClient;
+  bench::init_client_f *init_client;
+  bench::create_bucket_f *create_bucket;
+  bench::put_object_f *put_object;
   bench::get_object_f *get_object;
 };
 
@@ -30,9 +32,25 @@ inline implementation parse_implementation(const char *so_path) {
     std::exit(1);
   }
 
-  std::string symbol_name = "initClient";
-  bench::initClient_f *initClient = reinterpret_cast<bench::initClient_f *>(dlsym(so_handle, symbol_name.c_str()));
-  if (initClient == NULL) {
+  std::string symbol_name{};
+
+  symbol_name = "init_client";
+  bench::init_client_f *init_client = reinterpret_cast<bench::init_client_f *>(dlsym(so_handle, symbol_name.c_str()));
+  if (init_client == NULL) {
+    std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
+    std::exit(1);
+  }
+
+  symbol_name = "create_bucket";
+  bench::create_bucket_f *create_bucket = reinterpret_cast<bench::create_bucket_f *>(dlsym(so_handle, symbol_name.c_str()));
+  if (create_bucket == NULL) {
+    std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
+    std::exit(1);
+  }
+
+  symbol_name = "put_object";
+  bench::put_object_f *put_object = reinterpret_cast<bench::put_object_f *>(dlsym(so_handle, symbol_name.c_str()));
+  if (put_object == NULL) {
     std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
     std::exit(1);
   }
@@ -43,7 +61,7 @@ inline implementation parse_implementation(const char *so_path) {
     std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
     std::exit(1);
   }
-  return implementation{so_path, initClient, get_object};
+  return implementation{so_path, init_client, create_bucket, put_object, get_object};
 }
 
 inline std::array<implementation, implementations_count>

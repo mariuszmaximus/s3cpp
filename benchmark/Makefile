@@ -26,25 +26,17 @@ $(BUILD_DIR):
 $(GO_LIB): | $(BUILD_DIR)
 	cd ./aws-sdk-go-v2 && go build -buildmode=c-shared -o ../$(BUILD_DIR)/libgo$(so_ext) .
 
-AWS_SDK_CPP_INSTALL := $(BUILD_DIR)/.aws-sdk-cpp-installed
+AWS_SDK_CPP_PREFIX := $(shell brew --prefix aws-sdk-cpp)
+AWS_SDK_CPP_DEPS := aws-sdk-cpp $(shell brew deps aws-sdk-cpp)
+AWS_SDK_CPP_INCLUDES := $(foreach dep,$(AWS_SDK_CPP_DEPS),-I$(shell brew --prefix $(dep))/include)
 
-$(CPP_LIB): $(AWS_SDK_CPP_INSTALL) | $(BUILD_DIR)
+$(CPP_LIB): | $(BUILD_DIR)
 	c++ -std=c++26 -shared -fPIC \
-		-I$(BUILD_DIR)/aws-sdk-cpp-install/include \
+		$(AWS_SDK_CPP_INCLUDES) \
 		aws-sdk-cpp/task.cpp \
 		-o $@ \
-		-L$(BUILD_DIR)/aws-sdk-cpp-install/lib \
-		-laws-cpp-sdk-s3 -laws-cpp-sdk-core \
-		-Wl,-rpath,$(BUILD_DIR)/aws-sdk-cpp-install/lib
-
-$(AWS_SDK_CPP_INSTALL): | $(BUILD_DIR)
-	# Build from source (perhaps we should use a prebuilt binary)
-	[ -d $(BUILD_DIR)/aws-sdk-cpp ] || \
-		git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp $(BUILD_DIR)/aws-sdk-cpp
-	cmake -S $(BUILD_DIR)/aws-sdk-cpp -B $(BUILD_DIR)/aws-sdk-cpp-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)/aws-sdk-cpp-install -DBUILD_ONLY="s3" -DBUILD_TESTING=OFF
-	cmake --build $(BUILD_DIR)/aws-sdk-cpp-build --config Release
-	cmake --install $(BUILD_DIR)/aws-sdk-cpp-build --config Release
-	touch $@
+		-L$(AWS_SDK_CPP_PREFIX)/lib \
+		-laws-cpp-sdk-s3 -laws-cpp-sdk-core
 
 $(RUST_LIB): | $(BUILD_DIR)
 	cargo build --release --manifest-path ./aws-sdk-rust/Cargo.toml
@@ -71,4 +63,3 @@ aws-sdk-cpp: $(CPP_LIB)
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf ./aws-sdk-rust/target
-	rm -rf $(BUILD_DIR)/aws-sdk-cpp $(BUILD_DIR)/aws-sdk-cpp-build $(BUILD_DIR)/aws-sdk-cpp-install

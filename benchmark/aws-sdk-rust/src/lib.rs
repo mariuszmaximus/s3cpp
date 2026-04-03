@@ -18,10 +18,38 @@ async fn initialize_client(access: String, secret: String, endpoint: String) -> 
 }
 
 #[::tokio::main]
-async fn do_get_object(client: &aws_sdk_s3::Client, key: &str) -> String {
+async fn do_create_bucket(client: &aws_sdk_s3::Client, bucket: &str) {
+    client
+        .create_bucket()
+        .bucket(bucket)
+        .send()
+        .await
+        .unwrap_or_else(|err| {
+            eprintln!("fatal(rust): create_bucket failed: {err}");
+            std::process::exit(1);
+        });
+}
+
+#[::tokio::main]
+async fn do_put_object(client: &aws_sdk_s3::Client, bucket: &str, key: &str, contents: &str) {
+    client
+        .put_object()
+        .bucket(bucket)
+        .key(key)
+        .body(contents.as_bytes().to_vec().into())
+        .send()
+        .await
+        .unwrap_or_else(|err| {
+            eprintln!("fatal(rust): put_object failed: {err}");
+            std::process::exit(1);
+        });
+}
+
+#[::tokio::main]
+async fn do_get_object(client: &aws_sdk_s3::Client, bucket: &str, key: &str) -> String {
     let resp = client
         .get_object()
-        .bucket("bucket")
+        .bucket(bucket)
         .key(key)
         .send()
         .await
@@ -54,7 +82,7 @@ fn c_char_to_str(ch: *const c_char) -> String {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn initClient(
+pub unsafe extern "C" fn init_client(
     access: *const c_char,
     secret: *const c_char,
     endpoint: *const c_char,
@@ -69,11 +97,28 @@ pub unsafe extern "C" fn initClient(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn get_object(handle: *mut c_void, key: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn create_bucket(handle: *mut c_void, bucket: *const c_char) {
+    let bucket_rs = c_char_to_str(bucket);
+    let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
+    do_create_bucket(client, &bucket_rs);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn put_object(handle: *mut c_void, bucket: *const c_char, key: *const c_char, contents: *const c_char) {
+    let bucket_rs = c_char_to_str(bucket);
+    let key_rs = c_char_to_str(key);
+    let contents_rs = c_char_to_str(contents);
+    let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
+    do_put_object(client, &bucket_rs, &key_rs, &contents_rs);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn get_object(handle: *mut c_void, bucket: *const c_char, key: *const c_char) -> *mut c_char {
+    let bucket_rs = c_char_to_str(bucket);
     let key_rs = c_char_to_str(key);
     let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
 
-    let contents = do_get_object(&client, &key_rs);
+    let contents = do_get_object(&client, &bucket_rs, &key_rs);
 
     CString::new(contents)
         .unwrap_or_else(|err| {
