@@ -9,6 +9,8 @@
 
 namespace s3cpp {
 
+bool Ping(const std::string& endpoint_);
+
 class S3Client {
 public:
   S3Client(const std::string &access, const std::string &secret)
@@ -33,6 +35,7 @@ public:
         Parser(XMLParser()), endpoint_(customEndpoint),
         addressing_style_(style) {}
 
+
   // S3 operations: Goal is to support CRUD and stay minimal
   std::expected<ListObjectsResult, Error> ListObjects(const std::string &bucket, const ListObjectsInput &options = {});
   std::expected<ListAllMyBucketsResult, Error> ListBuckets(const ListBucketsInput &options = {});
@@ -43,18 +46,9 @@ public:
   std::expected<HeadBucketResult, Error> HeadBucket(const std::string &bucket, const HeadBucketInput &options = {});
   std::expected<HeadObjectResult, Error> HeadObject(const std::string &bucket, const std::string &key, const HeadObjectInput &options = {});
 
-  // S3 responses
-
-  /* TODO(cristian): Re-factor and re-think.
-   *
-   * In Go, this would be generalized using reflection and adding a method
-   * associated with the response struct.
-   *
-   * That is; Can we have a single deserialize method that takes in a struct
-   * and values and returns that?
-   *
-   * Otherwise; wait until C++26 to introduce reflection
-   */
+  // TODO(cristian): Support adding .timeout() for each AWS op
+  
+  // XML serde
   std::expected<ListObjectsResult, Error> deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const int maxKeys);
   std::expected<ListAllMyBucketsResult, Error> deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::optional<int> maxBuckets);
   std::expected<PutObjectResult, Error> deserializePutObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
