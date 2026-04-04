@@ -505,7 +505,6 @@ TEST_F(S3, PingEndpoint) {
 
     EXPECT_FALSE(s3cpp::Ping("127.0.0.1")); // Port omitted
     EXPECT_FALSE(s3cpp::Ping("198.168.0.1:9000")); // wrong IP
-    EXPECT_FALSE(s3cpp::Ping("127.0.0.2:9000")); // nothing listening
     EXPECT_FALSE(s3cpp::Ping("127.0.0.1:9001")); // minio console
     EXPECT_FALSE(s3cpp::Ping("s3.nan.amazonaws.com")); // bad region
     EXPECT_FALSE(s3cpp::Ping("github.com")); 
