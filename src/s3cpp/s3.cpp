@@ -1,7 +1,6 @@
 #include "s3cpp/auth.h"
 #include "s3cpp/httpclient.h"
 #include <expected>
-#include <print>
 #include <s3cpp/s3.h>
 
 namespace s3cpp {
