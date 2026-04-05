@@ -42,7 +42,7 @@ jobs:
 
     - name: Build s3cpp
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         cmake --build build -j$(nproc)
 
     - name: Build benchmark SDKs
