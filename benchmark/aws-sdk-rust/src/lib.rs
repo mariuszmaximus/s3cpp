@@ -5,72 +5,85 @@ use aws_config::Region;
 use aws_credential_types::Credentials;
 use aws_sdk_s3::Config;
 
-#[::tokio::main]
-async fn initialize_client(access: String, secret: String, endpoint: String) -> aws_sdk_s3::Client {
+struct ClientState {
+    client: aws_sdk_s3::Client,
+    runtime: tokio::runtime::Runtime,
+}
+
+fn initialize_client(access: String, secret: String, endpoint: String) -> ClientState {
+    let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|err| {
+        eprintln!("fatal(rust): failed to create tokio runtime: {err}");
+        std::process::exit(1);
+    });
+
     let credentials = Credentials::from_keys(access, secret, None);
     let config = Config::builder()
         .credentials_provider(credentials)
         .endpoint_url("http://127.0.0.1:9000/")
         .region(Region::new("eu-west-1"))
         .build();
-    let s3_client = aws_sdk_s3::Client::from_conf(config);
-    s3_client
+    let client = aws_sdk_s3::Client::from_conf(config);
+
+    ClientState { client, runtime }
 }
 
-#[::tokio::main]
-async fn do_create_bucket(client: &aws_sdk_s3::Client, bucket: &str) {
-    client
-        .create_bucket()
-        .bucket(bucket)
-        .send()
-        .await
-        .unwrap_or_else(|err| {
-            eprintln!("fatal(rust): create_bucket failed: {err}");
-            std::process::exit(1);
-        });
+fn do_create_bucket(state: &ClientState, bucket: &str) {
+    state.runtime.block_on(async {
+        state.client
+            .create_bucket()
+            .bucket(bucket)
+            .send()
+            .await
+            .unwrap_or_else(|err| {
+                eprintln!("fatal(rust): create_bucket failed: {err}");
+                std::process::exit(1);
+            });
+    });
 }
 
-#[::tokio::main]
-async fn do_put_object(client: &aws_sdk_s3::Client, bucket: &str, key: &str, contents: &str) {
-    client
-        .put_object()
-        .bucket(bucket)
-        .key(key)
-        .body(contents.as_bytes().to_vec().into())
-        .send()
-        .await
-        .unwrap_or_else(|err| {
-            eprintln!("fatal(rust): put_object failed: {err}");
-            std::process::exit(1);
-        });
+fn do_put_object(state: &ClientState, bucket: &str, key: &str, contents: &str) {
+    state.runtime.block_on(async {
+        state.client
+            .put_object()
+            .bucket(bucket)
+            .key(key)
+            .body(contents.as_bytes().to_vec().into())
+            .send()
+            .await
+            .unwrap_or_else(|err| {
+                eprintln!("fatal(rust): put_object failed: {err}");
+                std::process::exit(1);
+            });
+    });
 }
 
-#[::tokio::main]
-async fn do_get_object(client: &aws_sdk_s3::Client, bucket: &str, key: &str) -> String {
-    let resp = client
-        .get_object()
-        .bucket(bucket)
-        .key(key)
-        .send()
-        .await
-        .unwrap_or_else(|err| {
-            eprintln!("fatal(rust): get_object failed: {err}");
-            std::process::exit(1);
-        });
+fn do_get_object(state: &ClientState, bucket: &str, key: &str) -> String {
+    state.runtime.block_on(async {
+        let resp = state.client
+            .get_object()
+            .bucket(bucket)
+            .key(key)
+            .send()
+            .await
+            .unwrap_or_else(|err| {
+                eprintln!("fatal(rust): get_object failed: {err}");
+                std::process::exit(1);
+            });
 
-    let bytes = resp
-        .body
-        .collect()
-        .await
-        .unwrap_or_else(|err| {
-            eprintln!("fatal(rust): failed to collect body: {err}");
+        let bytes = resp
+            .body
+            .collect()
+            .await
+            .unwrap_or_else(|err| {
+                eprintln!("fatal(rust): failed to collect body: {err}");
+                std::process::exit(1);
+            })
+            .into_bytes();
+
+        String::from_utf8(bytes.to_vec()).unwrap_or_else(|err| {
+            eprintln!("fatal(rust): object is not valid UTF-8: {err}");
             std::process::exit(1);
         })
-        .into_bytes();
-
-    String::from_utf8(bytes.to_vec()).unwrap_or_else(|err| {
-        eprintln!("fatal(rust): object is not valid UTF-8: {err}");
-        std::process::exit(1);
     })
 }
 
@@ -91,16 +104,16 @@ pub unsafe extern "C" fn init_client(
     let secret_rs = c_char_to_str(secret);
     let endpoint_rs = c_char_to_str(endpoint);
 
-    let sdk_client = initialize_client(access_rs, secret_rs, endpoint_rs);
+    let state = initialize_client(access_rs, secret_rs, endpoint_rs);
 
-    Box::into_raw(Box::new(sdk_client)) as *mut core::ffi::c_void
+    Box::into_raw(Box::new(state)) as *mut c_void
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn create_bucket(handle: *mut c_void, bucket: *const c_char) {
     let bucket_rs = c_char_to_str(bucket);
-    let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
-    do_create_bucket(client, &bucket_rs);
+    let state = unsafe { &*(handle as *mut ClientState) };
+    do_create_bucket(state, &bucket_rs);
 }
 
 #[unsafe(no_mangle)]
@@ -108,17 +121,17 @@ pub unsafe extern "C" fn put_object(handle: *mut c_void, bucket: *const c_char, 
     let bucket_rs = c_char_to_str(bucket);
     let key_rs = c_char_to_str(key);
     let contents_rs = c_char_to_str(contents);
-    let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
-    do_put_object(client, &bucket_rs, &key_rs, &contents_rs);
+    let state = unsafe { &*(handle as *mut ClientState) };
+    do_put_object(state, &bucket_rs, &key_rs, &contents_rs);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn get_object(handle: *mut c_void, bucket: *const c_char, key: *const c_char) -> *mut c_char {
     let bucket_rs = c_char_to_str(bucket);
     let key_rs = c_char_to_str(key);
-    let client = unsafe { &mut *(handle as *mut aws_sdk_s3::Client) };
+    let state = unsafe { &*(handle as *mut ClientState) };
 
-    let contents = do_get_object(&client, &bucket_rs, &key_rs);
+    let contents = do_get_object(state, &bucket_rs, &key_rs);
 
     CString::new(contents)
         .unwrap_or_else(|err| {

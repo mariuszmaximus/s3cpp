@@ -20,6 +20,8 @@ constexpr std::size_t implementations_count = std::size(implementations_so);
 
 struct implementation {
   const char *name;
+  bench::ClientHandle handler;
+  // Benchmark ABI
   bench::init_client_f *init_client;
   bench::create_bucket_f *create_bucket;
   bench::put_object_f *put_object;
@@ -66,7 +68,10 @@ inline implementation parse_implementation(const char *so_path) {
     std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
     std::exit(1);
   }
-  return implementation{so_path, init_client, create_bucket, put_object, get_object};
+
+  return implementation{so_path,     init_client("minio_access", "minio_secret", "127.0.0.1:9000"),
+                        init_client, create_bucket,
+                        put_object,  get_object};
 }
 
 inline std::array<implementation, implementations_count> parse_implementations() {
