@@ -24,13 +24,21 @@ jobs:
 
         timeout 30 bash -c 'until curl -f http://localhost:9000/minio/health/live 2>/dev/null; do sleep 1; done'
 
-    - name: Install dependencies
+    - name: Install GCC 14
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14 cmake libcurl4-openssl-dev pkg-config
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+
+    - name: Install brew dependencies
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         echo "$(brew --prefix)/bin" >> $GITHUB_PATH
         brew install aws-sdk-cpp google-benchmark go rust
-        sudo apt-get update
-        sudo apt-get install -y cmake libcurl4-openssl-dev pkg-config
 
     - name: Build s3cpp
       run: |
