@@ -30,6 +30,8 @@ AWS_SDK_CPP_PREFIX := $(shell brew --prefix aws-sdk-cpp)
 AWS_SDK_CPP_DEPS := aws-sdk-cpp $(shell brew deps aws-sdk-cpp)
 AWS_SDK_CPP_INCLUDES := $(foreach dep,$(AWS_SDK_CPP_DEPS),-I$(shell brew --prefix $(dep))/include)
 
+GOOGLE_BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark)
+
 $(CPP_LIB): | $(BUILD_DIR)
 	c++ -std=c++26 -shared -fPIC \
 		$(AWS_SDK_CPP_INCLUDES) \
@@ -51,10 +53,15 @@ $(IMPLEMENTATIONS_INC): $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB) | $(BUILD_
 	printf '"./%s",\n' $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB) > $@
 
 bench: $(IMPLEMENTATIONS_INC) $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB)  | $(BUILD_DIR)
-	c++ -std=c++26 main.cpp -o $(BUILD_DIR)/bench
+	c++ -std=c++26 -I../src benchmark.cpp -o $(BUILD_DIR)/bench \
+	    -I$(GOOGLE_BENCHMARK_PREFIX)/include -L$(GOOGLE_BENCHMARK_PREFIX)/lib \
+	    ../build/lib/libs3cpp.a -lbenchmark $(shell pkg-config --libs libcurl libcrypto)
+	./$(BUILD_DIR)/bench
+
 
 test: $(IMPLEMENTATIONS_INC) $(GO_LIB) $(S3CPP_LIB) $(RUST_LIB) | $(BUILD_DIR)
 	c++ -std=c++26 -I../src test.cpp -o $(BUILD_DIR)/test ../build/lib/libs3cpp.a $(shell pkg-config --libs libcurl libcrypto)
+	./$(BUILD_DIR)/test
 
 
 .PHONY: all clean aws-sdk-cpp

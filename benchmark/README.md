@@ -6,6 +6,10 @@ This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a 
 
 ## Prerequisite
 
+```bash
+brew install aws-sdk-cpp google-benchmark
+```
+
 A local MinIO instance is expected to be running already. The current `test.cpp` uses `s3cpp` itself as a preamble to create basic scaffolding for the tests before calling each shared library implementation
 
 ```bash
@@ -22,15 +26,17 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
 Build all currently enabled shared libraries:
 
 ```bash
-$ make
+make
 ```
 
 Tests that shared libraries are built:
 ```bash
-$ make test
-$ ./build/test
-  ...
-  Good to go!
+make test
+```
+
+Run full benchmark against all supported SDKs:
+```bash
+make bench
 ```
 
 ## Notes

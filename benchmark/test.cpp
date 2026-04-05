@@ -1,5 +1,4 @@
 #include "implementations.h"
-#include <s3cpp/s3.h>
 #include "tasks.h"
 #include <cstring>
 #include <print>
@@ -7,7 +6,10 @@
 namespace s3b {
 
 void preamble() {
-  auto client = s3cpp::S3Client("minio_access", "minio_secret", "127.0.0.1:9000", s3cpp::S3AddressingStyle::PathStyle);
+  s3b::check_endpoint("127.0.0.1:9000");
+
+  auto client =
+      s3cpp::S3Client("minio_access", "minio_secret", "127.0.0.1:9000", s3cpp::S3AddressingStyle::PathStyle);
 
   // Clean up stale buckets from previous runs
   auto buckets = client.ListBuckets();
@@ -47,16 +49,6 @@ void test_init_client(implementation impl) {
   std::println("  OK init_client");
 }
 
-std::string bucket_name_for(const char *so_path) {
-  std::string_view name = so_path;
-  auto slash = name.rfind('/');
-  if (slash != std::string_view::npos) name = name.substr(slash + 1);
-  // strip lib prefix and .dylib/.so suffix
-  if (name.starts_with("lib")) name.remove_prefix(3);
-  if (name.ends_with(".dylib")) name.remove_suffix(6);
-  else if (name.ends_with(".so")) name.remove_suffix(3);
-  return "test-" + std::string(name);
-}
 
 void test_create_bucket(implementation impl, const std::string &bucket) {
   bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
