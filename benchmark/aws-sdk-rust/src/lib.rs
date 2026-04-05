@@ -11,10 +11,13 @@ struct ClientState {
 }
 
 fn initialize_client(access: String, secret: String, endpoint: String) -> ClientState {
-    let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|err| {
-        eprintln!("fatal(rust): failed to create tokio runtime: {err}");
-        std::process::exit(1);
-    });
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap_or_else(|err| {
+            eprintln!("fatal(rust): failed to create tokio runtime: {err}");
+            std::process::exit(1);
+        });
 
     let credentials = Credentials::from_keys(access, secret, None);
     let config = Config::builder()
@@ -139,4 +142,9 @@ pub unsafe extern "C" fn get_object(handle: *mut c_void, bucket: *const c_char, 
             std::process::exit(1);
         })
         .into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn free_client(handle: *mut c_void) {
+    drop(unsafe { Box::from_raw(handle as *mut ClientState) });
 }

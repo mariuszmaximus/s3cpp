@@ -31,6 +31,12 @@ void test_init_client(implementation impl) {
 }
 
 
+void test_free_client(implementation impl) {
+  bench::ClientHandle handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+  impl.free_client(handle);
+  std::println("  OK free_client");
+}
+
 void test_create_bucket(implementation impl, const std::string &bucket) {
   bench::ClientHandle handle = impl.handler;
   impl.create_bucket(handle, bucket.c_str());
@@ -66,6 +72,7 @@ int main() {
   for (const auto &impl : implementations) {
     std::println("{}", impl.name);
     s3b::test_init_client(impl);
+    s3b::test_free_client(impl);
     std::string bucket = s3b::bucket_name_for(impl.name);
     s3b::test_create_bucket(impl, bucket);
     s3b::test_put_object(impl, bucket);

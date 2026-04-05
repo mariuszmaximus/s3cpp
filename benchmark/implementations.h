@@ -26,6 +26,7 @@ struct implementation {
   bench::create_bucket_f *create_bucket;
   bench::put_object_f *put_object;
   bench::get_object_f *get_object;
+  bench::free_client_f *free_client;
 };
 
 inline implementation parse_implementation(const char *so_path) {
@@ -69,9 +70,17 @@ inline implementation parse_implementation(const char *so_path) {
     std::exit(1);
   }
 
+  symbol_name = "free_client";
+  bench::free_client_f *free_client =
+      reinterpret_cast<bench::free_client_f *>(dlsym(so_handle, symbol_name.c_str()));
+  if (free_client == NULL) {
+    std::println(stderr, "fatal: {} for {}", ::dlerror(), so_path);
+    std::exit(1);
+  }
+
   return implementation{so_path,     init_client("minio_access", "minio_secret", "127.0.0.1:9000"),
                         init_client, create_bucket,
-                        put_object,  get_object};
+                        put_object,  get_object, free_client};
 }
 
 inline std::array<implementation, implementations_count> parse_implementations() {

@@ -120,4 +120,10 @@ func get_object(handle unsafe.Pointer, bucket *C.char, key *C.char) *C.char {
 	return C.CString(contents)
 }
 
+//export free_client
+func free_client(handle unsafe.Pointer) {
+	h := *(*cgo.Handle)(handle)
+	h.Delete()
+}
+
 func main() {}

@@ -72,3 +72,7 @@ extern "C" const char *get_object(bench::ClientHandle handle,
   result = do_get_object(handle, bucket, key);
   return result.c_str();
 }
+
+extern "C" void free_client(bench::ClientHandle handle) noexcept {
+    delete reinterpret_cast<S3Client *>(handle);
+}

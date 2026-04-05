@@ -11,7 +11,11 @@ static void benchmark_init_client(::benchmark::State &state, s3b::implementation
   const std::string secret_ = "minio_secret";
   const std::string endpoint_ = "127.0.0.1:9000";
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000"));
+    auto handle = impl.init_client("minio_access", "minio_secret", "127.0.0.1:9000");
+    ::benchmark::DoNotOptimize(handle);
+    state.PauseTiming();
+    impl.free_client(handle);
+    state.ResumeTiming();
   }
   s3b::clean_up();
 }
@@ -33,6 +37,7 @@ static void benchmark_create_bucket(::benchmark::State &state, s3b::implementati
     state.ResumeTiming();
     impl.create_bucket(handle, bucket.c_str());
   }
+
   s3b::clean_up();
 }
 
