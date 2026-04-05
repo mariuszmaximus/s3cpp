@@ -1,15 +1,6 @@
 # s3cpp
 
-> [!WARNING]
-> **WIP** Currently supporting:
->
-> - ListBuckets, ListObjectsV2
-> - CreateBucket, DeleteBucket, HeadBucket
-> - GetObject, PutObject, DeleteObject, HeadObject
->
-> On MinIO instances
-
-A lightweight C++ client library for AWS S3, with zero 3rd party C++ dependencies (only libcurl and OpenSSL). Inspired by the AWS SDK for Go.
+A lightweight C++ client library for AWS S3 with zero deps (only libcurl and OpenSSL)
 
 ## Architecture
 
@@ -199,4 +190,4 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
   server /data --console-address ":9001"
 ```
 
-The full test suite contains 62 tests
+The full test suite contains 63 tests
