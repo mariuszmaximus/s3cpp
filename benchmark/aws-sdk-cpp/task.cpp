@@ -12,6 +12,7 @@
 static bench::ClientHandle initialize_client(const char *access,
                                              const char *secret,
                                              const char *endpoint) {
+  setenv("AWS_EC2_METADATA_DISABLED", "true", 1);
   Aws::SDKOptions options;
   Aws::InitAPI(options);
 
