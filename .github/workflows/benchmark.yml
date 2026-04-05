@@ -1,0 +1,52 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build MinIO image
+      run: docker build -t s3cpp-minio:latest .
+
+    - name: Start MinIO server
+      run: |
+        docker run -d -p 9000:9000 -p 9001:9001 \
+          -e "MINIO_ROOT_USER=minio_access" \
+          -e "MINIO_ROOT_PASSWORD=minio_secret" \
+          --name minio-server \
+          s3cpp-minio:latest \
+          server /data --console-address ":9001"
+
+        timeout 30 bash -c 'until curl -f http://localhost:9000/minio/health/live 2>/dev/null; do sleep 1; done'
+
+    - name: Install dependencies
+      run: |
+        brew install aws-sdk-cpp google-benchmark go rust
+        sudo apt-get update
+        sudo apt-get install -y cmake libcurl4-openssl-dev pkg-config
+
+    - name: Build s3cpp
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build -j$(nproc)
+
+    - name: Build benchmark SDKs
+      working-directory: benchmark
+      run: make
+
+    - name: Run benchmark tests
+      working-directory: benchmark
+      run: make test
+
+    - name: Run benchmarks
+      working-directory: benchmark
+      run: make bench
+
+    - name: Stop MinIO server
+      if: always()
+      run: docker stop minio-server
