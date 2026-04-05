@@ -56,5 +56,8 @@ int main(int argc, char *argv[]) {
 
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
+
+  s3b::clean_up();
+
   ::benchmark::Shutdown();
 }
