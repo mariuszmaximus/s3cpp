@@ -48,7 +48,7 @@ Fetch a small object from an existing bucket each iteration.
 | [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 828,040 ns | 270,482 ns |
 | [s3cpp](https://github.com/ggcr/s3cpp) (ours) | 690,424 ns | 171,775 ns |
 
-Ran on GitHub Actions CI ([full run](https://github.com/ggcr/s3cpp/actions/runs/24022463397/job/70053992177)) -- 2-core runner, results may vary.
+Ran on GitHub Actions CI ([full run](https://github.com/ggcr/s3cpp/actions/runs/24022463397/job/70053992177)) -- 2-core runner, did my best to compare all in a fair equal manner. 
 
 ## Prerequisite
 
