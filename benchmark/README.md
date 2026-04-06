@@ -1,5 +1,16 @@
 # Benchmark
 
+| Operation | aws-sdk-go-v2 | aws-sdk-cpp | aws-sdk-rust | s3cpp |
+|---|---|---|---|---|
+| InitClient | 0.02 ms | 1.53 ms | 0.14 ms | **0.002 ms** |
+| CreateBucket | 2.07 ms | 2.14 ms | 2.02 ms | **1.97 ms** |
+| PutObject | 2.69 ms | 3.10 ms | 2.58 ms | **2.58 ms** |
+| GetObject | 0.87 ms | 0.94 ms | 0.83 ms | **0.69 ms** |
+
+Ran on GitHub Actions CI ([full run](https://github.com/ggcr/s3cpp/actions/runs/24022463397/job/70053992177)) -- 2-core runner, results may vary.
+
+---
+
 Work in progress
 
 This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a tiny C ABI and loading them as shared libraries at runtime
