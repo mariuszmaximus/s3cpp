@@ -69,19 +69,9 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
 
 ## Usage
 
-Build all currently enabled shared libraries:
-
 ```bash
 make
-```
-
-Tests that shared libraries are built:
-```bash
 make test
-```
-
-Run full benchmark against all supported SDKs:
-```bash
 make bench
 ```
 
