@@ -1,19 +1,53 @@
 # Benchmark
 
-| Operation | aws-sdk-go-v2 | aws-sdk-cpp | aws-sdk-rust | s3cpp |
-|---|---|---|---|---|
-| InitClient | 0.02 ms | 1.53 ms | 0.14 ms | **0.002 ms** |
-| CreateBucket | 2.07 ms | 2.14 ms | 2.02 ms | **1.97 ms** |
-| PutObject | 2.69 ms | 3.10 ms | 2.58 ms | **2.58 ms** |
-| GetObject | 0.87 ms | 0.94 ms | 0.83 ms | **0.69 ms** |
+This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a tiny C ABI and loading them as shared libraries at runtime. Benchmarks are run using [Google Benchmark](https://github.com/google/benchmark) against a local MinIO instance.
+
+### Shared library size
+
+| SDK | Size |
+|---|---|
+| [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | 10 MB |
+| [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp) | 0.46 MB |
+| [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 13 MB |
+| [s3cpp](https://github.com/ggcr/s3cpp) | 0.57 MB |
+
+### InitClient
+
+| SDK | Time | CPU |
+|---|---|---|
+| [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | 19,169 ns | 18,482 ns |
+| [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp) | 1,534,570 ns | 1,534,728 ns |
+| [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 136,442 ns | 136,707 ns |
+| [s3cpp](https://github.com/ggcr/s3cpp) | 2,099 ns | 2,115 ns |
+
+### CreateBucket
+
+| SDK | Time | CPU |
+|---|---|---|
+| [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | 2,065,452 ns | 141,830 ns |
+| [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp) | 2,139,594 ns | 365,792 ns |
+| [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 2,018,148 ns | 241,299 ns |
+| [s3cpp](https://github.com/ggcr/s3cpp) | 1,968,110 ns | 181,595 ns |
+
+### PutObject
+
+| SDK | Time | CPU |
+|---|---|---|
+| [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | 2,693,701 ns | 160,558 ns |
+| [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp) | 3,100,104 ns | 540,917 ns |
+| [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 2,584,035 ns | 267,083 ns |
+| [s3cpp](https://github.com/ggcr/s3cpp) | 2,577,575 ns | 178,125 ns |
+
+### GetObject
+
+| SDK | Time | CPU |
+|---|---|---|
+| [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | 867,896 ns | 172,226 ns |
+| [aws-sdk-cpp](https://github.com/aws/aws-sdk-cpp) | 943,522 ns | 378,008 ns |
+| [aws-sdk-rust](https://github.com/awslabs/aws-sdk-rust) | 828,040 ns | 270,482 ns |
+| [s3cpp](https://github.com/ggcr/s3cpp) | 690,424 ns | 171,775 ns |
 
 Ran on GitHub Actions CI ([full run](https://github.com/ggcr/s3cpp/actions/runs/24022463397/job/70053992177)) -- 2-core runner, results may vary.
-
----
-
-Work in progress
-
-This directory benchmarks multiple AWS S3 SDKs by lowering implementations to a tiny C ABI and loading them as shared libraries at runtime
 
 ## Prerequisite
 
