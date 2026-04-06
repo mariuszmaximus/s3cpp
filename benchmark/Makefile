@@ -45,9 +45,10 @@ $(RUST_LIB): | $(BUILD_DIR)
 	mv ./aws-sdk-rust/target/release/librust$(so_ext) $(BUILD_DIR)/.
 
 $(S3CPP_LIB): | $(BUILD_DIR)
-	cmake --build ../build
+	cmake -S .. -B ../build-release -DCMAKE_BUILD_TYPE=Release
+	cmake --build ../build-release
 	c++ -std=c++26 -shared -fPIC -I../src s3cpp/task.cpp -o $(BUILD_DIR)/libs3cpp$(so_ext) \
-		../build/lib/libs3cpp.a $(shell pkg-config --libs libcurl libcrypto)
+		../build-release/lib/libs3cpp.a $(shell pkg-config --libs libcurl libcrypto)
 
 $(IMPLEMENTATIONS_INC): $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB) | $(BUILD_DIR)
 	printf '"./%s",\n' $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB) > $@
@@ -60,7 +61,7 @@ bench: $(IMPLEMENTATIONS_INC) $(GO_LIB) $(CPP_LIB) $(RUST_LIB) $(S3CPP_LIB)  | $
 
 
 test: $(IMPLEMENTATIONS_INC) $(GO_LIB) $(S3CPP_LIB) $(RUST_LIB) | $(BUILD_DIR)
-	c++ -std=c++26 -I../src test.cpp -o $(BUILD_DIR)/test ../build/lib/libs3cpp.a $(shell pkg-config --libs libcurl libcrypto)
+	c++ -std=c++26 -I../src test.cpp -o $(BUILD_DIR)/test ../build-release/lib/libs3cpp.a $(shell pkg-config --libs libcurl libcrypto)
 	./$(BUILD_DIR)/test
 
 

@@ -67,6 +67,7 @@ int main() {
 
   // Check that endpoint is valid and setup a dummy bucket to run tests on
   s3b::check_endpoint("127.0.0.1:9000");
+  s3b::clean_up();
   s3b::preamble();
 
   for (const auto &impl : implementations) {
