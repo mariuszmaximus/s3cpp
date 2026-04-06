@@ -38,6 +38,7 @@ jobs:
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         echo "$(brew --prefix)/bin" >> $GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$(brew --prefix)/lib" >> $GITHUB_ENV
         brew install aws-sdk-cpp google-benchmark go rust
 
     - name: Build s3cpp
