@@ -8,14 +8,11 @@
 
 namespace s3cpp {
 // We will use a regular Key Value struct to represent the raw XML nodes
-// TODO(cristian): Make private
 struct XMLNode {
   const std::string tag;
   const std::string value;
 
-  bool operator==(const XMLNode &other) const {
-    return tag == other.tag && value == other.value;
-  }
+  bool operator==(const XMLNode &other) const { return tag == other.tag && value == other.value; }
 };
 
 class XMLParser {
@@ -53,8 +50,7 @@ public:
         else {
           state = States::TagName;
           currentTag += ch;
-          if (currentPath.size() >= 2 &&
-              currentPath[currentPath.size() - 2] != '.') {
+          if (currentPath.size() >= 2 && currentPath[currentPath.size() - 2] != '.') {
             currentPath += '.';
           }
           currentPath += ch;
@@ -122,8 +118,7 @@ public:
       case States::TagClose: {
         if (ch != currentTagClose[tagCloseIdx]) {
           throw std::runtime_error(
-              std::format("Invalid closing tag encountered: {} for char {}",
-                          currentTagClose, ch));
+              std::format("Invalid closing tag encountered: {} for char {}", currentTagClose, ch));
         } else {
           // currentTagClose.erase(0, 1);
           tagCloseIdx++;
@@ -151,8 +146,7 @@ public:
 
         // Cleanup
         tagStack.pop();
-        if (auto pos = currentPath.find_last_of('.');
-            pos != std::string::npos) {
+        if (auto pos = currentPath.find_last_of('.'); pos != std::string::npos) {
           currentPath.erase(pos, std::string::npos);
         }
         currentBody.clear();
@@ -160,12 +154,11 @@ public:
         break;
       }
       default:
-        throw std::runtime_error(std::format("Invalid state reached: {}",
-                                             std::to_underlying(state)));
+        throw std::runtime_error(std::format("Invalid state reached: {}", std::to_underlying(state)));
       }
     }
-    if (currentTag.size() == 0 && currentTagClose.size() == 0 &&
-        currentBody.size() == 0 && tagStack.size() == 0)
+    if (currentTag.size() == 0 && currentTagClose.size() == 0 && currentBody.size() == 0 &&
+        tagStack.size() == 0)
       return xmlElements;
     else
       throw std::runtime_error("Something went wrong");
@@ -191,29 +184,26 @@ public:
 
   template <typename T> T parseNumber(const std::string s) {
     T code;
-    std::from_chars_result result;
-    int base = 10;
+    int base = 10, offset = 0;
 
     // Parse XML numerical entities (i.e. '&#34;')
     if (s.starts_with('#') && s.size() > 1) {
       if (s[1] == 'x' || s[1] == 'X') {
         // Hex: #xhhhh
         base = 16;
-        result = std::from_chars(s.data() + 2, s.data() + s.size(), code, base);
+        offset = 2;
       } else {
         // Decimal: #hhhh
-        base = 10;
-        result = std::from_chars(s.data() + 1, s.data() + s.size(), code, base);
+        offset = 1;
       }
-    } else { // Regular case
-      result = std::from_chars(s.data(), s.data() + s.size(), code, base);
     }
+
+    std::from_chars_result result = std::from_chars(s.data() + offset, s.data() + s.size(), code, base);
 
     if (result.ec == std::errc{}) {
       return code;
     }
-    throw std::runtime_error(
-        std::format("Unable to parse number from '{}'", s));
+    throw std::runtime_error(std::format("Unable to parse number from '{}'", s));
   }
 
   bool parseBool(const std::string &s) {
@@ -222,8 +212,7 @@ public:
     else if (s == "False" || s == "false")
       return false;
     else
-      throw std::runtime_error(
-          std::format("Unable to parse boolean from string: '{}'", s));
+      throw std::runtime_error(std::format("Unable to parse boolean from string: '{}'", s));
   }
 
 private:
