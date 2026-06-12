@@ -95,17 +95,18 @@ AWSSigV4Signer::createCannonicalRequest(HttpRequestBase<T> &request,
   std::string url = request.getURL();
 
   // URI
-  std::string uri{};
-  if (size_t bpos = url.find("amazonaws.com"); bpos != std::string::npos) {
-    uri = url.erase(0, bpos + 13);
+  const size_t scheme_end = url.find("://");
+  const size_t authority_start =
+      scheme_end == std::string::npos ? 0 : scheme_end + 3;
+  const size_t path_start = url.find_first_of("/?", authority_start);
+
+  std::string uri;
+  if (path_start == std::string::npos) {
+    uri = "/";
+  } else if (url[path_start] == '?') {
+    uri = "/" + url.substr(path_start);
   } else {
-    // Assume localhost:XXXX (dirty, sorry :( i know)
-    size_t path_start = url.find('/', 7);
-    if (path_start != std::string::npos) {
-      uri = url.substr(path_start);
-    } else {
-      uri = "/";
-    }
+    uri = url.substr(path_start);
   }
   size_t begin_q = uri.find("?");
   const std::string cannonical_uri =
