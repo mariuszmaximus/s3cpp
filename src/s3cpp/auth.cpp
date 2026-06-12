@@ -29,8 +29,16 @@ template <typename T> void AWSSigV4Signer::sign(HttpRequestBase<T> &request) {
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   }
   request.header("x-amz-content-sha256", payload_hash);
+  sign(request, payload_hash);
+}
+
+template <typename T>
+void AWSSigV4Signer::sign(HttpRequestBase<T> &request,
+                          const std::string &payload_hash) {
+  request.header("x-amz-content-sha256", payload_hash);
 
   // Skip signing for anonymous requests
+  const bool is_anonymous = access_key.empty() || secret_key.empty();
   if (is_anonymous) {
     return;
   }
@@ -227,9 +235,14 @@ AWSSigV4Signer::deriveSigningKey(const std::string request_date) {
 template void AWSSigV4Signer::sign<HttpRequest>(HttpRequestBase<HttpRequest> &);
 template void
 AWSSigV4Signer::sign<HttpBodyRequest>(HttpRequestBase<HttpBodyRequest> &);
+template void
+AWSSigV4Signer::sign<HttpFileRequest>(HttpRequestBase<HttpFileRequest> &,
+                                      const std::string &);
 template std::string AWSSigV4Signer::createCannonicalRequest<HttpRequest>(
     HttpRequestBase<HttpRequest> &, const std::string &);
 template std::string AWSSigV4Signer::createCannonicalRequest<HttpBodyRequest>(
     HttpRequestBase<HttpBodyRequest> &, const std::string &);
+template std::string AWSSigV4Signer::createCannonicalRequest<HttpFileRequest>(
+    HttpRequestBase<HttpFileRequest> &, const std::string &);
 
 } // namespace s3cpp

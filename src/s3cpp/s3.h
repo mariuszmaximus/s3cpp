@@ -2,6 +2,7 @@
 #define S3CPP_S3
 
 #include <expected>
+#include <functional>
 #include <s3cpp/auth.h>
 #include <s3cpp/httpclient.h>
 #include <s3cpp/types.h>
@@ -31,9 +32,13 @@ public:
   }
   S3Client(const std::string &access, const std::string &secret,
            const std::string &customEndpoint, S3AddressingStyle style)
-      : Client(HttpClient()), Signer(AWSSigV4Signer(access, secret)),
+      : S3Client(access, secret, customEndpoint, style, false, "us-east-1") {}
+  S3Client(const std::string &access, const std::string &secret,
+           const std::string &customEndpoint, S3AddressingStyle style,
+           bool useHttps, const std::string &region)
+      : Client(HttpClient()), Signer(AWSSigV4Signer(access, secret, region)),
         Parser(XMLParser()), endpoint_(customEndpoint),
-        addressing_style_(style) {}
+        addressing_style_(style), use_https_(useHttps) {}
 
 
   // S3 operations: Goal is to support CRUD and stay minimal
@@ -41,6 +46,11 @@ public:
   std::expected<ListAllMyBucketsResult, Error> ListBuckets(const ListBucketsInput &options = {});
   std::expected<std::string, Error> GetObject(const std::string &bucket, const std::string &key, const GetObjectInput &options = {});
   std::expected<PutObjectResult, Error> PutObject(const std::string &bucket, const std::string &key, const std::string &body, const PutObjectInput &options = {});
+  std::expected<PutObjectResult, Error>
+  PutObjectFile(const std::string &bucket, const std::string &key,
+                const std::string &filename,
+                const std::string &contentType = "application/octet-stream",
+                UploadProgressCallback progress = {});
   std::expected<DeleteObjectResult, Error> DeleteObject(const std::string &bucket, const std::string &key, const DeleteObjectInput &options = {});
   std::expected<CreateBucketResult, Error> CreateBucket(const std::string &bucket, const CreateBucketConfiguration &configuration = {}, const CreateBucketInput &options = {}); std::expected<void, Error> DeleteBucket(const std::string &bucket, const DeleteBucketInput &options = {});
   std::expected<HeadBucketResult, Error> HeadBucket(const std::string &bucket, const HeadBucketInput &options = {});
@@ -65,6 +75,7 @@ private:
   XMLParser Parser;
   std::string endpoint_;
   S3AddressingStyle addressing_style_;
+  bool use_https_ = true;
 
   std::string buildURL(const std::string &bucket) const {
     if (addressing_style_ == S3AddressingStyle::VirtualHosted) {
@@ -72,7 +83,8 @@ private:
       return std::format("https://{}.{}", bucket, endpoint_);
     } else {
       // endpoint/bucket/key
-      return std::format("http://{}/{}", endpoint_, bucket);
+      return std::format("{}://{}/{}", use_https_ ? "https" : "http",
+                         endpoint_, bucket);
     }
   }
 

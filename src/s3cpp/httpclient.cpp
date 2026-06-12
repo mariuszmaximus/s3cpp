@@ -2,6 +2,7 @@
 #include <curl/easy.h>
 #include <expected>
 #include <format>
+#include <cstdio>
 #include <s3cpp/httpclient.h>
 #include <stdexcept>
 #include <string>
@@ -30,6 +31,10 @@ std::expected<HttpResponse, std::string> HttpBodyRequest::execute() {
   default:
     return std::unexpected<std::string>("No matching enum Http Method");
   }
+}
+
+std::expected<HttpResponse, std::string> HttpFileRequest::execute() {
+  return client_.execute_upload(*this);
 }
 
 std::expected<HttpResponse, std::string>
@@ -189,6 +194,68 @@ HttpClient::execute_post(HttpBodyRequest &request) {
   long response_code = 0;
   curl_easy_getinfo(curl_handle, CURLINFO_HTTP_CODE, &response_code);
 
+  return HttpResponse(static_cast<int>(response_code), std::move(body_buf),
+                      std::move(headers_buf));
+}
+
+std::expected<HttpResponse, std::string>
+HttpClient::execute_upload(HttpFileRequest &request) {
+  if (!curl_handle) {
+    return std::unexpected<std::string>("cURL handle is invalid");
+  }
+
+  FILE *file = std::fopen(request.getFilename().c_str(), "rb");
+  if (!file) {
+    return std::unexpected<std::string>(
+        std::format("unable to open file: {}", request.getFilename()));
+  }
+
+  std::string body_buf;
+  std::map<std::string, std::string, LowerCaseCompare> headers_buf;
+  auto headers = request.getHeaders();
+  headers.insert(this->getHeaders().begin(), this->getHeaders().end());
+  struct curl_slist *list = nullptr;
+  for (const auto &[key, value] : headers) {
+    list = curl_slist_append(list, std::format("{}: {}", key, value).c_str());
+  }
+
+  curl_easy_reset(curl_handle);
+  curl_easy_setopt(curl_handle, CURLOPT_URL, request.getURL().c_str());
+  curl_easy_setopt(curl_handle, CURLOPT_UPLOAD, 1L);
+  curl_easy_setopt(curl_handle, CURLOPT_READDATA, file);
+  curl_easy_setopt(curl_handle, CURLOPT_INFILESIZE_LARGE, request.getFileSize());
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_callback);
+  curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &body_buf);
+  curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, header_callback);
+  curl_easy_setopt(curl_handle, CURLOPT_HEADERDATA, &headers_buf);
+  curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, list);
+  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, request.getTimeout());
+
+  const auto &progress = request.getProgressCallback();
+  if (progress) {
+    curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(
+        curl_handle,
+        CURLOPT_XFERINFOFUNCTION,
+        +[](void *userdata, curl_off_t, curl_off_t, curl_off_t upload_total,
+            curl_off_t uploaded) -> int {
+          const auto *callback =
+              static_cast<const UploadProgressCallback *>(userdata);
+          return (*callback)(uploaded, upload_total) ? 0 : 1;
+        });
+    curl_easy_setopt(curl_handle, CURLOPT_XFERINFODATA, &progress);
+  }
+
+  const CURLcode code = curl_easy_perform(curl_handle);
+  long response_code = 0;
+  curl_easy_getinfo(curl_handle, CURLINFO_HTTP_CODE, &response_code);
+  curl_slist_free_all(list);
+  std::fclose(file);
+
+  if (code != CURLE_OK) {
+    return std::unexpected<std::string>(
+        std::format("libcurl upload error: {}", curl_easy_strerror(code)));
+  }
   return HttpResponse(static_cast<int>(response_code), std::move(body_buf),
                       std::move(headers_buf));
 }

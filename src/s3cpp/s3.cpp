@@ -2,8 +2,64 @@
 #include "s3cpp/httpclient.h"
 #include <expected>
 #include <s3cpp/s3.h>
+#include <filesystem>
+#include <fstream>
+#include <openssl/evp.h>
+#include <vector>
 
 namespace s3cpp {
+
+namespace {
+
+std::expected<std::string, Error> HashFile(const std::string &filename) {
+  std::ifstream input(filename, std::ios::binary);
+  if (!input) {
+    return std::unexpected<Error>(
+        Error{.Code = "FileError", .Message = "unable to open " + filename});
+  }
+
+  EVP_MD_CTX *context = EVP_MD_CTX_new();
+  if (!context || EVP_DigestInit_ex(context, EVP_sha256(), nullptr) != 1) {
+    EVP_MD_CTX_free(context);
+    return std::unexpected<Error>(
+        Error{.Code = "HashError", .Message = "unable to initialize SHA-256"});
+  }
+  std::vector<char> buffer(1024 * 1024);
+  while (input) {
+    input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    const auto count = input.gcount();
+    if (count > 0) {
+      if (EVP_DigestUpdate(context, buffer.data(),
+                           static_cast<std::size_t>(count)) != 1) {
+        EVP_MD_CTX_free(context);
+        return std::unexpected<Error>(
+            Error{.Code = "HashError", .Message = "unable to hash file"});
+      }
+    }
+  }
+  if (!input.eof()) {
+    EVP_MD_CTX_free(context);
+    return std::unexpected<Error>(
+        Error{.Code = "FileError", .Message = "unable to read " + filename});
+  }
+
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int digest_size = 0;
+  if (EVP_DigestFinal_ex(context, digest, &digest_size) != 1) {
+    EVP_MD_CTX_free(context);
+    return std::unexpected<Error>(
+        Error{.Code = "HashError", .Message = "unable to finish SHA-256"});
+  }
+  EVP_MD_CTX_free(context);
+  std::ostringstream output;
+  for (unsigned int index = 0; index < digest_size; ++index) {
+    output << std::hex << std::setw(2) << std::setfill('0')
+           << static_cast<int>(digest[index]);
+  }
+  return output.str();
+}
+
+}  // namespace
 
 bool Ping(const std::string & endpoint_) {
   // AWS S3 docs do not provide a check health or ping method.
@@ -334,8 +390,10 @@ std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &buc
 
   HttpBodyRequest req = Client.put(url).header("Host", getHostHeader(bucket)).body(body);
 
-  // opt headers
-  // ...
+  if (options.ContentType)
+    req.header("Content-Type", *options.ContentType);
+  if (options.ContentLength)
+    req.header("Content-Length", std::to_string(*options.ContentLength));
 
   Signer.sign(req);
   auto result = req.execute();
@@ -349,6 +407,43 @@ std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &buc
   }
   const std::vector<XMLNode> &XMLBody = Parser.parse(res.body());
   return std::unexpected<Error>(deserializeError(XMLBody));
+}
+
+std::expected<PutObjectResult, Error>
+S3Client::PutObjectFile(const std::string &bucket, const std::string &key,
+                        const std::string &filename,
+                        const std::string &contentType,
+                        UploadProgressCallback progress) {
+  std::error_code error;
+  const auto size = std::filesystem::file_size(filename, error);
+  if (error) {
+    return std::unexpected<Error>(
+        Error{.Code = "FileError", .Message = error.message()});
+  }
+
+  auto hash = HashFile(filename);
+  if (!hash) {
+    return std::unexpected<Error>(hash.error());
+  }
+
+  const std::string url = buildURL(bucket) + std::format("/{}", key);
+  auto request =
+      Client.putFile(url, filename, static_cast<curl_off_t>(size))
+          .header("Host", getHostHeader(bucket))
+          .header("Content-Type", contentType)
+          .header("Content-Length", std::to_string(size))
+          .progress(std::move(progress));
+  Signer.sign(request, *hash);
+
+  auto result = request.execute();
+  if (!result) {
+    return std::unexpected<Error>(
+        Error{.Code = "HttpError", .Message = result.error()});
+  }
+  if (result->is_ok()) {
+    return deserializePutObjectResult(result->headers());
+  }
+  return std::unexpected<Error>(deserializeError(Parser.parse(result->body())));
 }
 
 std::expected<DeleteObjectResult, Error>

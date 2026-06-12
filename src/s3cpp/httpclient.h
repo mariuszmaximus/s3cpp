@@ -6,6 +6,7 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <expected>
+#include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -16,6 +17,9 @@ namespace s3cpp {
 class HttpClient;
 
 enum class HttpMethod { Get, Post, Put, Head, Delete };
+
+using UploadProgressCallback =
+    std::function<bool(curl_off_t uploaded, curl_off_t total)>;
 
 struct LowerCaseCompare { // A custom lambda to sort keys alphabetically
   bool operator()(const std::string &a, const std::string &b) const {
@@ -150,12 +154,38 @@ private:
   std::string body_ = "";
 };
 
+class HttpFileRequest : public HttpRequestBase<HttpFileRequest> {
+public:
+  HttpFileRequest(HttpClient &client, std::string URL, std::string filename,
+                  curl_off_t file_size)
+      : HttpRequestBase(client, std::move(URL), HttpMethod::Put),
+        filename_(std::move(filename)), file_size_(file_size) {}
+
+  HttpFileRequest &progress(UploadProgressCallback callback) {
+    progress_callback_ = std::move(callback);
+    return *this;
+  }
+
+  const std::string &getFilename() const { return filename_; }
+  curl_off_t getFileSize() const { return file_size_; }
+  const UploadProgressCallback &getProgressCallback() const {
+    return progress_callback_;
+  }
+  std::expected<HttpResponse, std::string> execute();
+
+private:
+  std::string filename_;
+  curl_off_t file_size_;
+  UploadProgressCallback progress_callback_;
+};
+
 // HttpClient should only focus on handling the cURL handle
 // and making the request (HttpRequest) and returning HttpResponse
 class HttpClient {
   // `execute()` is invoked from the request only
   friend class HttpRequest;
   friend class HttpBodyRequest;
+  friend class HttpFileRequest;
 
 public:
   HttpClient() {
@@ -207,6 +237,11 @@ public:
   [[nodiscard]] HttpBodyRequest put(const std::string &URL) {
     return HttpBodyRequest{*this, URL, HttpMethod::Put};
   };
+  [[nodiscard]] HttpFileRequest putFile(const std::string &URL,
+                                        const std::string &filename,
+                                        curl_off_t file_size) {
+    return HttpFileRequest{*this, URL, filename, file_size};
+  };
   [[nodiscard]] HttpBodyRequest del(const std::string &URL) {
     return HttpBodyRequest{*this, URL, HttpMethod::Delete};
   };
@@ -227,6 +262,8 @@ private:
   std::expected<HttpResponse, std::string> execute_head(HttpRequest &request);
   std::expected<HttpResponse, std::string>
   execute_post(HttpBodyRequest &request);
+  std::expected<HttpResponse, std::string>
+  execute_upload(HttpFileRequest &request);
   std::expected<HttpResponse, std::string>
   execute_delete(HttpBodyRequest &request);
 

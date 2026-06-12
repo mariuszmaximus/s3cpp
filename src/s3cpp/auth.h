@@ -17,6 +17,8 @@ public:
         secret_key(std::move(secret)) {}
 
   template <typename T> void sign(HttpRequestBase<T> &request);
+  template <typename T>
+  void sign(HttpRequestBase<T> &request, const std::string &payload_hash);
 
   template <typename T>
   std::string createCannonicalRequest(

@@ -193,3 +193,7 @@ $ docker run -d -p 9000:9000 -p 9001:9001 \
 ```
 
 The full test suite contains 63 tests
+
+## Architecture Decisions
+
+- [ADR 0001: Streaming File Uploads and Configurable S3 Endpoints](docs/adr/0001-streaming-file-upload-and-custom-endpoints.md)
