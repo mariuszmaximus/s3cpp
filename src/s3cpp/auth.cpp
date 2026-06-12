@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
-#include <format>
+#include <s3cpp/compat_format.h>
 #include <iomanip>
 #include <map>
 #include <openssl/hmac.h>
@@ -53,7 +53,7 @@ void AWSSigV4Signer::sign(HttpRequestBase<T> &request,
 
   // Credential
   const std::string credential_scope =
-      std::format("{}/{}/s3/aws4_request", request_date, aws_region);
+      compat::format("{}/{}/s3/aws4_request", request_date, aws_region);
 
   // Signed headers
   std::string signed_headers = "";
@@ -73,7 +73,7 @@ void AWSSigV4Signer::sign(HttpRequestBase<T> &request,
 
   // To sign
   std::string string_to_sign =
-      std::format("{}\n{}\n{}\n{}", hash_algo, timestamp, credential_scope,
+      compat::format("{}\n{}\n{}\n{}", hash_algo, timestamp, credential_scope,
                   hex_cannonical_request);
   std::string signature = hex(HMAC_SHA256(
       deriveSigningKey(request_date), SHA256_DIGEST_LENGTH, string_to_sign));
@@ -81,7 +81,7 @@ void AWSSigV4Signer::sign(HttpRequestBase<T> &request,
   // Build the final auth header value
   request.header(
       "Authorization",
-      std::format("{} Credential={}/{}, SignedHeaders={}, Signature={}",
+      compat::format("{} Credential={}/{}, SignedHeaders={}, Signature={}",
                   hash_algo, access_key, credential_scope, signed_headers,
                   signature));
 }
@@ -131,7 +131,7 @@ AWSSigV4Signer::createCannonicalRequest(HttpRequestBase<T> &request,
     if (query_str.size() > 0) {
       query_str += "&";
     }
-    query_str += std::format("{}={}", url_encode(key), url_encode(value));
+    query_str += compat::format("{}={}", url_encode(key), url_encode(value));
   }
 
   // Canonical Headers + SignedHeaders
@@ -151,7 +151,7 @@ AWSSigV4Signer::createCannonicalRequest(HttpRequestBase<T> &request,
   }
 
   std::string canonical_request =
-      std::format("{}\n{}\n{}\n{}\n{}\n{}", http_verb, cannonical_uri,
+      compat::format("{}\n{}\n{}\n{}\n{}\n{}", http_verb, cannonical_uri,
                   query_str, cheaders, signed_headers, payload_hash);
 
   return canonical_request;
@@ -194,7 +194,7 @@ std::string AWSSigV4Signer::url_encode(const std::string &value) {
         c == '~') {
       encoded += c;
     } else {
-      encoded += std::format("%{:02X}", c);
+      encoded += compat::format("%{:02X}", c);
     }
   }
   return encoded;
@@ -204,7 +204,7 @@ std::string AWSSigV4Signer::url_encode(const std::string &value) {
 // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-create-signed-request.html
 std::string AWSSigV4Signer::getTimestamp() {
   const std::chrono::time_point now{std::chrono::system_clock::now()};
-  return std::format("{:%Y%m%dT%H%M%SZ}",
+  return compat::format("{:%Y%m%dT%H%M%SZ}",
                      std::chrono::floor<std::chrono::seconds>(now));
 }
 

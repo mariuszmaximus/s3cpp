@@ -1,5 +1,5 @@
 #include <charconv>
-#include <format>
+#include <s3cpp/compat_format.h>
 #include <stack>
 #include <stdexcept>
 #include <string>
@@ -118,7 +118,7 @@ public:
       case States::TagClose: {
         if (ch != currentTagClose[tagCloseIdx]) {
           throw std::runtime_error(
-              std::format("Invalid closing tag encountered: {} for char {}", currentTagClose, ch));
+              compat::format("Invalid closing tag encountered: {} for char {}", currentTagClose, ch));
         } else {
           // currentTagClose.erase(0, 1);
           tagCloseIdx++;
@@ -154,7 +154,7 @@ public:
         break;
       }
       default:
-        throw std::runtime_error(std::format("Invalid state reached: {}", std::to_underlying(state)));
+        throw std::runtime_error(compat::format("Invalid state reached: {}", static_cast<int>(state)));
       }
     }
     if (currentTag.size() == 0 && currentTagClose.size() == 0 && currentBody.size() == 0 &&
@@ -179,7 +179,7 @@ public:
 
     return parseNumber<char>(entity);
 
-    throw std::runtime_error(std::format("Unknown XML entity: &{};", entity));
+    throw std::runtime_error(compat::format("Unknown XML entity: &{};", entity));
   }
 
   template <typename T> T parseNumber(const std::string s) {
@@ -203,7 +203,7 @@ public:
     if (result.ec == std::errc{}) {
       return code;
     }
-    throw std::runtime_error(std::format("Unable to parse number from '{}'", s));
+    throw std::runtime_error(compat::format("Unable to parse number from '{}'", s));
   }
 
   bool parseBool(const std::string &s) {
@@ -212,7 +212,7 @@ public:
     else if (s == "False" || s == "false")
       return false;
     else
-      throw std::runtime_error(std::format("Unable to parse boolean from string: '{}'", s));
+      throw std::runtime_error(compat::format("Unable to parse boolean from string: '{}'", s));
   }
 
 private:

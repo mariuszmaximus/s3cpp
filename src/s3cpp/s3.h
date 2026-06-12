@@ -1,7 +1,7 @@
 #ifndef S3CPP_S3
 #define S3CPP_S3
 
-#include <expected>
+#include <s3cpp/compat_expected.h>
 #include <functional>
 #include <s3cpp/auth.h>
 #include <s3cpp/httpclient.h>
@@ -19,7 +19,7 @@ public:
         Parser(XMLParser()),
         addressing_style_(S3AddressingStyle::VirtualHosted) {
     // When no endpoint is provided we default to us-east-1
-    endpoint_ = std::format("s3.us-east-1.amazonaws.com");
+    endpoint_ = compat::format("s3.us-east-1.amazonaws.com");
   }
   S3Client(const std::string &access, const std::string &secret,
            const std::string &region)
@@ -28,7 +28,7 @@ public:
         addressing_style_(S3AddressingStyle::VirtualHosted) {
     // When no endpoint is provided we default to AWS
     endpoint_ =
-        std::format("s3.{}.amazonaws.com", region); // TODO(cristian): Ping?
+        compat::format("s3.{}.amazonaws.com", region); // TODO(cristian): Ping?
   }
   S3Client(const std::string &access, const std::string &secret,
            const std::string &customEndpoint, S3AddressingStyle style)
@@ -42,30 +42,30 @@ public:
 
 
   // S3 operations: Goal is to support CRUD and stay minimal
-  std::expected<ListObjectsResult, Error> ListObjects(const std::string &bucket, const ListObjectsInput &options = {});
-  std::expected<ListAllMyBucketsResult, Error> ListBuckets(const ListBucketsInput &options = {});
-  std::expected<std::string, Error> GetObject(const std::string &bucket, const std::string &key, const GetObjectInput &options = {});
-  std::expected<PutObjectResult, Error> PutObject(const std::string &bucket, const std::string &key, const std::string &body, const PutObjectInput &options = {});
-  std::expected<PutObjectResult, Error>
+  compat::expected<ListObjectsResult, Error> ListObjects(const std::string &bucket, const ListObjectsInput &options = {});
+  compat::expected<ListAllMyBucketsResult, Error> ListBuckets(const ListBucketsInput &options = {});
+  compat::expected<std::string, Error> GetObject(const std::string &bucket, const std::string &key, const GetObjectInput &options = {});
+  compat::expected<PutObjectResult, Error> PutObject(const std::string &bucket, const std::string &key, const std::string &body, const PutObjectInput &options = {});
+  compat::expected<PutObjectResult, Error>
   PutObjectFile(const std::string &bucket, const std::string &key,
                 const std::string &filename,
                 const std::string &contentType = "application/octet-stream",
                 UploadProgressCallback progress = {});
-  std::expected<DeleteObjectResult, Error> DeleteObject(const std::string &bucket, const std::string &key, const DeleteObjectInput &options = {});
-  std::expected<CreateBucketResult, Error> CreateBucket(const std::string &bucket, const CreateBucketConfiguration &configuration = {}, const CreateBucketInput &options = {}); std::expected<void, Error> DeleteBucket(const std::string &bucket, const DeleteBucketInput &options = {});
-  std::expected<HeadBucketResult, Error> HeadBucket(const std::string &bucket, const HeadBucketInput &options = {});
-  std::expected<HeadObjectResult, Error> HeadObject(const std::string &bucket, const std::string &key, const HeadObjectInput &options = {});
+  compat::expected<DeleteObjectResult, Error> DeleteObject(const std::string &bucket, const std::string &key, const DeleteObjectInput &options = {});
+  compat::expected<CreateBucketResult, Error> CreateBucket(const std::string &bucket, const CreateBucketConfiguration &configuration = {}, const CreateBucketInput &options = {}); compat::expected<void, Error> DeleteBucket(const std::string &bucket, const DeleteBucketInput &options = {});
+  compat::expected<HeadBucketResult, Error> HeadBucket(const std::string &bucket, const HeadBucketInput &options = {});
+  compat::expected<HeadObjectResult, Error> HeadObject(const std::string &bucket, const std::string &key, const HeadObjectInput &options = {});
 
   // TODO(cristian): Support adding .timeout() for each AWS op
   
   // XML serde
-  std::expected<ListObjectsResult, Error> deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const int maxKeys);
-  std::expected<ListAllMyBucketsResult, Error> deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::optional<int> maxBuckets);
-  std::expected<PutObjectResult, Error> deserializePutObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
-  std::expected<DeleteObjectResult, Error> deserializeDeleteObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
-  std::expected<CreateBucketResult, Error> deserializeCreateBucketResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
-  std::expected<HeadBucketResult, Error> deserializeHeadBucketResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
-  std::expected<HeadObjectResult, Error> deserializeHeadObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
+  compat::expected<ListObjectsResult, Error> deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const int maxKeys);
+  compat::expected<ListAllMyBucketsResult, Error> deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::optional<int> maxBuckets);
+  compat::expected<PutObjectResult, Error> deserializePutObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
+  compat::expected<DeleteObjectResult, Error> deserializeDeleteObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
+  compat::expected<CreateBucketResult, Error> deserializeCreateBucketResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
+  compat::expected<HeadBucketResult, Error> deserializeHeadBucketResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
+  compat::expected<HeadObjectResult, Error> deserializeHeadObjectResult( const std::map<std::string, std::string, LowerCaseCompare> &headers);
 
   Error deserializeError(const std::vector<XMLNode> &nodes);
 
@@ -80,17 +80,17 @@ private:
   std::string buildURL(const std::string &bucket) const {
     if (addressing_style_ == S3AddressingStyle::VirtualHosted) {
       // bucket.s3.region.amazonaws.com/key
-      return std::format("https://{}.{}", bucket, endpoint_);
+      return compat::format("https://{}.{}", bucket, endpoint_);
     } else {
       // endpoint/bucket/key
-      return std::format("{}://{}/{}", use_https_ ? "https" : "http",
+      return compat::format("{}://{}/{}", use_https_ ? "https" : "http",
                          endpoint_, bucket);
     }
   }
 
   std::string getHostHeader(const std::string &bucket) const {
     if (addressing_style_ == S3AddressingStyle::VirtualHosted) {
-      return std::format("{}.{}", bucket, endpoint_);
+      return compat::format("{}.{}", bucket, endpoint_);
     } else {
       return endpoint_;
     }
@@ -108,7 +108,7 @@ public:
 
   bool HasMorePages() const { return hasMorePages_; }
 
-  std::expected<ListObjectsResult, Error> NextPage() {
+  compat::expected<ListObjectsResult, Error> NextPage() {
     ListObjectsInput options;
     if (!continuationToken_.empty())
       options.ContinuationToken = continuationToken_;

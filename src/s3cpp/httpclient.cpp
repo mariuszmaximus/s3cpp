@@ -1,7 +1,7 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include <expected>
-#include <format>
+#include <s3cpp/compat_expected.h>
+#include <s3cpp/compat_format.h>
 #include <cstdio>
 #include <s3cpp/httpclient.h>
 #include <stdexcept>
@@ -9,18 +9,18 @@
 
 namespace s3cpp {
 // Route to its HttpMethod
-std::expected<HttpResponse, std::string> HttpRequest::execute() {
+compat::expected<HttpResponse, std::string> HttpRequest::execute() {
   switch (this->http_method_) {
   case HttpMethod::Get:
     return client_.execute_get(*this);
   case HttpMethod::Head:
     return client_.execute_head(*this);
   default:
-    return std::unexpected<std::string>("No matching enum Http Method");
+    return compat::make_unexpected("No matching enum Http Method");
   }
 }
 
-std::expected<HttpResponse, std::string> HttpBodyRequest::execute() {
+compat::expected<HttpResponse, std::string> HttpBodyRequest::execute() {
   switch (this->http_method_) {
   case HttpMethod::Post:
     return client_.execute_post(*this);
@@ -29,20 +29,20 @@ std::expected<HttpResponse, std::string> HttpBodyRequest::execute() {
   case HttpMethod::Delete:
     return client_.execute_delete(*this);
   default:
-    return std::unexpected<std::string>("No matching enum Http Method");
+    return compat::make_unexpected("No matching enum Http Method");
   }
 }
 
-std::expected<HttpResponse, std::string> HttpFileRequest::execute() {
+compat::expected<HttpResponse, std::string> HttpFileRequest::execute() {
   return client_.execute_upload(*this);
 }
 
-std::expected<HttpResponse, std::string>
+compat::expected<HttpResponse, std::string>
 HttpClient::execute_get(HttpRequest &request) {
   if (!curl_handle) {
     // this can happen both when cURL handle is not initialized or when it
     // is invalidated in the HTTPClient copy constructor
-    return std::unexpected<std::string>("cURL handle is invalid");
+    return compat::make_unexpected("cURL handle is invalid");
   }
   std::string body_buf;
   std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -74,14 +74,14 @@ HttpClient::execute_get(HttpRequest &request) {
   headers.insert(this->getHeaders().begin(), this->getHeaders().end());
   struct curl_slist *list = NULL;
   for (const auto &[k, v] : headers) {
-    list = curl_slist_append(list, std::format("{}: {}", k, v).c_str());
+    list = curl_slist_append(list, compat::format("{}: {}", k, v).c_str());
   }
   curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, list);
 
   CURLcode code = curl_easy_perform(curl_handle);
   curl_slist_free_all(list);
   if (code != CURLE_OK) {
-    return std::unexpected<std::string>(std::format(
+    return compat::make_unexpected(compat::format(
         "libcurl error on execute_get: {}", curl_easy_strerror(code)));
   }
 
@@ -93,12 +93,12 @@ HttpClient::execute_get(HttpRequest &request) {
                       std::move(headers_buf));
 }
 
-std::expected<HttpResponse, std::string>
+compat::expected<HttpResponse, std::string>
 HttpClient::execute_head(HttpRequest &request) {
   if (!curl_handle) {
     // this can happen both when cURL handle is not initialized or when it
     // is invalidated in the HTTPClient copy constructor
-    return std::unexpected<std::string>("cURL handle is invalid");
+    return compat::make_unexpected("cURL handle is invalid");
   }
   std::map<std::string, std::string, LowerCaseCompare> headers_buf;
   std::string error_buf;
@@ -117,14 +117,14 @@ HttpClient::execute_head(HttpRequest &request) {
   headers.insert(this->getHeaders().begin(), this->getHeaders().end());
   struct curl_slist *list = NULL;
   for (const auto &[k, v] : headers) {
-    list = curl_slist_append(list, std::format("{}: {}", k, v).c_str());
+    list = curl_slist_append(list, compat::format("{}: {}", k, v).c_str());
   }
   curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, list);
 
   CURLcode code = curl_easy_perform(curl_handle);
   curl_slist_free_all(list);
   if (code != CURLE_OK) {
-    return std::unexpected<std::string>(std::format(
+    return compat::make_unexpected(compat::format(
         "libcurl error execute_head: {}", curl_easy_strerror(code)));
   }
 
@@ -135,12 +135,12 @@ HttpClient::execute_head(HttpRequest &request) {
   return HttpResponse(static_cast<int>(response_code), std::move(headers_buf));
 }
 
-std::expected<HttpResponse, std::string>
+compat::expected<HttpResponse, std::string>
 HttpClient::execute_post(HttpBodyRequest &request) {
   if (!curl_handle) {
     // this can happen both when cURL handle is not initialized or when it
     // is invalidated in the HTTPClient copy constructor
-    return std::unexpected<std::string>("cURL handle is invalid");
+    return compat::make_unexpected("cURL handle is invalid");
   }
   std::string body_buf;
   std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -179,14 +179,14 @@ HttpClient::execute_post(HttpBodyRequest &request) {
   headers.insert(this->getHeaders().begin(), this->getHeaders().end());
   struct curl_slist *list = NULL;
   for (const auto &[k, v] : headers) {
-    list = curl_slist_append(list, std::format("{}: {}", k, v).c_str());
+    list = curl_slist_append(list, compat::format("{}: {}", k, v).c_str());
   }
   curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, list);
 
   CURLcode code = curl_easy_perform(curl_handle);
   curl_slist_free_all(list);
   if (code != CURLE_OK) {
-    return std::unexpected<std::string>(std::format(
+    return compat::make_unexpected(compat::format(
         "libcurl error execute_post: {}", curl_easy_strerror(code)));
   }
 
@@ -198,16 +198,16 @@ HttpClient::execute_post(HttpBodyRequest &request) {
                       std::move(headers_buf));
 }
 
-std::expected<HttpResponse, std::string>
+compat::expected<HttpResponse, std::string>
 HttpClient::execute_upload(HttpFileRequest &request) {
   if (!curl_handle) {
-    return std::unexpected<std::string>("cURL handle is invalid");
+    return compat::make_unexpected("cURL handle is invalid");
   }
 
   FILE *file = std::fopen(request.getFilename().c_str(), "rb");
   if (!file) {
-    return std::unexpected<std::string>(
-        std::format("unable to open file: {}", request.getFilename()));
+    return compat::make_unexpected(
+        compat::format("unable to open file: {}", request.getFilename()));
   }
 
   std::string body_buf;
@@ -216,7 +216,7 @@ HttpClient::execute_upload(HttpFileRequest &request) {
   headers.insert(this->getHeaders().begin(), this->getHeaders().end());
   struct curl_slist *list = nullptr;
   for (const auto &[key, value] : headers) {
-    list = curl_slist_append(list, std::format("{}: {}", key, value).c_str());
+    list = curl_slist_append(list, compat::format("{}: {}", key, value).c_str());
   }
 
   curl_easy_reset(curl_handle);
@@ -253,19 +253,19 @@ HttpClient::execute_upload(HttpFileRequest &request) {
   std::fclose(file);
 
   if (code != CURLE_OK) {
-    return std::unexpected<std::string>(
-        std::format("libcurl upload error: {}", curl_easy_strerror(code)));
+    return compat::make_unexpected(
+        compat::format("libcurl upload error: {}", curl_easy_strerror(code)));
   }
   return HttpResponse(static_cast<int>(response_code), std::move(body_buf),
                       std::move(headers_buf));
 }
 
-std::expected<HttpResponse, std::string>
+compat::expected<HttpResponse, std::string>
 HttpClient::execute_delete(HttpBodyRequest &request) {
   if (!curl_handle) {
     // this can happen both when cURL handle is not initialized or when it
     // is invalidated in the HTTPClient copy constructor
-    return std::unexpected<std::string>("cURL handle is invalid");
+    return compat::make_unexpected("cURL handle is invalid");
   }
   std::string body_buf;
   std::map<std::string, std::string, LowerCaseCompare> headers_buf;
@@ -299,14 +299,14 @@ HttpClient::execute_delete(HttpBodyRequest &request) {
   headers.insert(this->getHeaders().begin(), this->getHeaders().end());
   struct curl_slist *list = NULL;
   for (const auto &[k, v] : headers) {
-    list = curl_slist_append(list, std::format("{}: {}", k, v).c_str());
+    list = curl_slist_append(list, compat::format("{}: {}", k, v).c_str());
   }
   curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, list);
 
   CURLcode code = curl_easy_perform(curl_handle);
   curl_slist_free_all(list);
   if (code != CURLE_OK) {
-    return std::unexpected<std::string>(std::format(
+    return compat::make_unexpected(compat::format(
         "libcurl error execute_delete: {}", curl_easy_strerror(code)));
   }
 

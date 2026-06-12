@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include <expected>
+#include <s3cpp/compat_expected.h>
 #include <functional>
 #include <map>
 #include <stdexcept>
@@ -131,7 +131,7 @@ protected:
 class HttpRequest : public HttpRequestBase<HttpRequest> {
 public:
   using HttpRequestBase::HttpRequestBase;
-  std::expected<HttpResponse, std::string> execute();
+  compat::expected<HttpResponse, std::string> execute();
 };
 
 // POST/PUT
@@ -148,7 +148,7 @@ public:
 
   const std::string &getBody() const { return body_; }
 
-  std::expected<HttpResponse, std::string> execute();
+  compat::expected<HttpResponse, std::string> execute();
 
 private:
   std::string body_ = "";
@@ -171,7 +171,7 @@ public:
   const UploadProgressCallback &getProgressCallback() const {
     return progress_callback_;
   }
-  std::expected<HttpResponse, std::string> execute();
+  compat::expected<HttpResponse, std::string> execute();
 
 private:
   std::string filename_;
@@ -258,13 +258,13 @@ private:
 
   // main logic to perform the request
   // this is invoked by HttpRequest
-  std::expected<HttpResponse, std::string> execute_get(HttpRequest &request);
-  std::expected<HttpResponse, std::string> execute_head(HttpRequest &request);
-  std::expected<HttpResponse, std::string>
+  compat::expected<HttpResponse, std::string> execute_get(HttpRequest &request);
+  compat::expected<HttpResponse, std::string> execute_head(HttpRequest &request);
+  compat::expected<HttpResponse, std::string>
   execute_post(HttpBodyRequest &request);
-  std::expected<HttpResponse, std::string>
+  compat::expected<HttpResponse, std::string>
   execute_upload(HttpFileRequest &request);
-  std::expected<HttpResponse, std::string>
+  compat::expected<HttpResponse, std::string>
   execute_delete(HttpBodyRequest &request);
 
   const std::unordered_map<std::string, std::string> &getHeaders() const {

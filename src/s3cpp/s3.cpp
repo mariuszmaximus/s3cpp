@@ -1,6 +1,6 @@
 #include "s3cpp/auth.h"
 #include "s3cpp/httpclient.h"
-#include <expected>
+#include <s3cpp/compat_expected.h>
 #include <s3cpp/s3.h>
 #include <filesystem>
 #include <fstream>
@@ -11,17 +11,17 @@ namespace s3cpp {
 
 namespace {
 
-std::expected<std::string, Error> HashFile(const std::string &filename) {
+compat::expected<std::string, Error> HashFile(const std::string &filename) {
   std::ifstream input(filename, std::ios::binary);
   if (!input) {
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "FileError", .Message = "unable to open " + filename});
   }
 
   EVP_MD_CTX *context = EVP_MD_CTX_new();
   if (!context || EVP_DigestInit_ex(context, EVP_sha256(), nullptr) != 1) {
     EVP_MD_CTX_free(context);
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "HashError", .Message = "unable to initialize SHA-256"});
   }
   std::vector<char> buffer(1024 * 1024);
@@ -32,14 +32,14 @@ std::expected<std::string, Error> HashFile(const std::string &filename) {
       if (EVP_DigestUpdate(context, buffer.data(),
                            static_cast<std::size_t>(count)) != 1) {
         EVP_MD_CTX_free(context);
-        return std::unexpected<Error>(
+        return compat::make_unexpected(
             Error{.Code = "HashError", .Message = "unable to hash file"});
       }
     }
   }
   if (!input.eof()) {
     EVP_MD_CTX_free(context);
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "FileError", .Message = "unable to read " + filename});
   }
 
@@ -47,7 +47,7 @@ std::expected<std::string, Error> HashFile(const std::string &filename) {
   unsigned int digest_size = 0;
   if (EVP_DigestFinal_ex(context, digest, &digest_size) != 1) {
     EVP_MD_CTX_free(context);
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "HashError", .Message = "unable to finish SHA-256"});
   }
   EVP_MD_CTX_free(context);
@@ -85,28 +85,28 @@ bool Ping(const std::string & endpoint_) {
   return false;
 }
 
-std::expected<ListObjectsResult, Error> S3Client::ListObjects(const std::string &bucket,
+compat::expected<ListObjectsResult, Error> S3Client::ListObjects(const std::string &bucket,
                                                               const ListObjectsInput &options) {
   // Silent-ly accept maxKeys > 1000, even though we will return 1K at most
   // Pagination is opt-in as in the Go SDK, the user must be aware of this
 
   // Build URL with query parameters
-  std::string url = std::format("{}?list-type=2", buildURL(bucket));
+  std::string url = compat::format("{}?list-type=2", buildURL(bucket));
 
   if (options.Prefix.has_value())
-    url += std::format("&prefix={}", options.Prefix.value());
+    url += compat::format("&prefix={}", options.Prefix.value());
 
   int maxKeys = options.MaxKeys.value_or(1000);
-  url += std::format("&max-keys={}", maxKeys);
+  url += compat::format("&max-keys={}", maxKeys);
 
   if (options.ContinuationToken.has_value())
-    url += std::format("&continuation-token={}", options.ContinuationToken.value());
+    url += compat::format("&continuation-token={}", options.ContinuationToken.value());
   if (options.Delimiter.has_value())
-    url += std::format("&delimiter={}", options.Delimiter.value());
+    url += compat::format("&delimiter={}", options.Delimiter.value());
   if (options.EncodingType.has_value())
-    url += std::format("&encoding-type={}", options.EncodingType.value());
+    url += compat::format("&encoding-type={}", options.EncodingType.value());
   if (options.StartAfter.has_value())
-    url += std::format("&start-after={}", options.StartAfter.value());
+    url += compat::format("&start-after={}", options.StartAfter.value());
   if (options.FetchOwner.has_value() && options.FetchOwner.value())
     url += "&fetch-owner=true";
 
@@ -121,7 +121,7 @@ std::expected<ListObjectsResult, Error> S3Client::ListObjects(const std::string 
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -130,30 +130,30 @@ std::expected<ListObjectsResult, Error> S3Client::ListObjects(const std::string 
   if (res.is_ok()) {
     return deserializeListObjectsResult(XMLBody, maxKeys);
   }
-  return std::unexpected<Error>(deserializeError(XMLBody));
+  return compat::make_unexpected(deserializeError(XMLBody));
 }
 
-std::expected<ListAllMyBucketsResult, Error> S3Client::ListBuckets(const ListBucketsInput &options) {
+compat::expected<ListAllMyBucketsResult, Error> S3Client::ListBuckets(const ListBucketsInput &options) {
   std::string url = (addressing_style_ == S3AddressingStyle::VirtualHosted)
-                        ? std::format("https://{}/", endpoint_)
-                        : std::format("http://{}/", endpoint_);
+                        ? compat::format("https://{}/", endpoint_)
+                        : compat::format("http://{}/", endpoint_);
 
   // Build URL with query parameters
   bool firstParam = true;
   if (options.BucketRegion.has_value()) {
-    url += std::format("{}bucket-region={}", firstParam ? "?" : "&", options.BucketRegion.value());
+    url += compat::format("{}bucket-region={}", firstParam ? "?" : "&", options.BucketRegion.value());
     firstParam = false;
   }
   if (options.ContinuationToken.has_value()) {
-    url += std::format("{}continuation-token={}", firstParam ? "?" : "&", options.ContinuationToken.value());
+    url += compat::format("{}continuation-token={}", firstParam ? "?" : "&", options.ContinuationToken.value());
     firstParam = false;
   }
   if (options.MaxBuckets.has_value()) {
-    url += std::format("{}max-buckets={}", firstParam ? "?" : "&", options.MaxBuckets.value());
+    url += compat::format("{}max-buckets={}", firstParam ? "?" : "&", options.MaxBuckets.value());
     firstParam = false;
   }
   if (options.Prefix.has_value()) {
-    url += std::format("{}prefix={}", firstParam ? "?" : "&", options.Prefix.value());
+    url += compat::format("{}prefix={}", firstParam ? "?" : "&", options.Prefix.value());
     firstParam = false;
   }
 
@@ -162,7 +162,7 @@ std::expected<ListAllMyBucketsResult, Error> S3Client::ListBuckets(const ListBuc
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -171,10 +171,10 @@ std::expected<ListAllMyBucketsResult, Error> S3Client::ListBuckets(const ListBuc
   if (res.is_ok()) {
     return deserializeListBucketsResult(XMLBody, options.MaxBuckets);
   }
-  return std::unexpected<Error>(deserializeError(XMLBody));
+  return compat::make_unexpected(deserializeError(XMLBody));
 }
 
-std::expected<ListObjectsResult, Error>
+compat::expected<ListObjectsResult, Error>
 S3Client::deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const int maxKeys) {
   ListObjectsResult result;
   result.Contents.reserve(maxKeys);
@@ -194,13 +194,13 @@ S3Client::deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const 
     /* Sigh... no reflection */
 
     // Check if we've seen this tag before in the current object
-    if (node.tag.contains("ListBucketResult.Contents")) {
+    if (node.tag.find("ListBucketResult.Contents") != std::string::npos) {
       if (std::find(seenContents.begin(), seenContents.end(), node.tag) != seenContents.end()) {
         result.Contents.push_back(Contents_{});
         seenContents.clear();
         contentsIdx++;
       }
-    } else if (node.tag.contains("ListBucketResult.CommonPrefix")) {
+    } else if (node.tag.find("ListBucketResult.CommonPrefix") != std::string::npos) {
       if (std::find(seenCommonPrefix.begin(), seenCommonPrefix.end(), node.tag) != seenCommonPrefix.end()) {
         result.CommonPrefixes.push_back(CommonPrefix{});
         seenCommonPrefix.clear();
@@ -261,15 +261,15 @@ S3Client::deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const 
       // Note(cristian): This fallback should not be needed as we have
       // the HTTP status codes for this, however, I like it
       if (node.tag.substr(0, 6) == "Error.") {
-        return std::unexpected<Error>(deserializeError(nodes));
+        return compat::make_unexpected(deserializeError(nodes));
       }
-      throw std::runtime_error(std::format("No case for ListBucketResult response found for: {}", node.tag));
+      throw std::runtime_error(compat::format("No case for ListBucketResult response found for: {}", node.tag));
     }
 
     // Add already seen fields
-    if (node.tag.contains("ListBucketResult.Contents")) {
+    if (node.tag.find("ListBucketResult.Contents") != std::string::npos) {
       seenContents.push_back(node.tag);
-    } else if (node.tag.contains("ListBucketResult.CommonPrefix")) {
+    } else if (node.tag.find("ListBucketResult.CommonPrefix") != std::string::npos) {
       seenCommonPrefix.push_back(node.tag);
     }
   }
@@ -285,7 +285,7 @@ S3Client::deserializeListObjectsResult(const std::vector<XMLNode> &nodes, const 
   return result;
 }
 
-std::expected<ListAllMyBucketsResult, Error>
+compat::expected<ListAllMyBucketsResult, Error>
 S3Client::deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::optional<int> maxBuckets) {
   ListAllMyBucketsResult result;
   if (maxBuckets.has_value())
@@ -301,7 +301,7 @@ S3Client::deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::o
     /* Sigh... no reflection */
 
     // Check if we've seen this tag before in the current object
-    if (node.tag.contains("ListAllMyBucketsResult.Buckets.")) {
+    if (node.tag.find("ListAllMyBucketsResult.Buckets.") != std::string::npos) {
       if (std::find(seenBuckets.begin(), seenBuckets.end(), node.tag) != seenBuckets.end()) {
         result.Buckets.push_back(Bucket{});
         seenBuckets.clear();
@@ -330,14 +330,14 @@ S3Client::deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::o
       // Note(cristian): This fallback should not be needed as we have
       // the HTTP status codes for this, however, I like it
       if (node.tag.substr(0, 6) == "Error.") {
-        return std::unexpected<Error>(deserializeError(nodes));
+        return compat::make_unexpected(deserializeError(nodes));
       }
       throw std::runtime_error(
-          std::format("No case for ListAllMyBucketsResult response found for: {}", node.tag));
+          compat::format("No case for ListAllMyBucketsResult response found for: {}", node.tag));
     }
 
     // Add already seen fields
-    if (node.tag.contains("ListAllMyBucketsResult.Buckets")) {
+    if (node.tag.find("ListAllMyBucketsResult.Buckets") != std::string::npos) {
       seenBuckets.push_back(node.tag);
     }
   }
@@ -350,9 +350,9 @@ S3Client::deserializeListBucketsResult(const std::vector<XMLNode> &nodes, std::o
   return result;
 }
 
-std::expected<std::string, Error> S3Client::GetObject(const std::string &bucket, const std::string &key,
+compat::expected<std::string, Error> S3Client::GetObject(const std::string &bucket, const std::string &key,
                                                       const GetObjectInput &options) {
-  std::string url = buildURL(bucket) + std::format("/{}", key);
+  std::string url = buildURL(bucket) + compat::format("/{}", key);
 
   HttpRequest req = Client.get(url).header("Host", getHostHeader(bucket));
 
@@ -371,22 +371,22 @@ std::expected<std::string, Error> S3Client::GetObject(const std::string &bucket,
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
   if (res.is_ok()) {
     return res.body();
   }
-  return std::unexpected<Error>(deserializeError(Parser.parse(res.body())));
+  return compat::make_unexpected(deserializeError(Parser.parse(res.body())));
 }
 
-std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &bucket, const std::string &key,
+compat::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &bucket, const std::string &key,
                                                           const std::string &body,
                                                           const PutObjectInput &options) {
   // TODO(cristian): For now let's support only string body
 
-  std::string url = buildURL(bucket) + std::format("/{}", key);
+  std::string url = buildURL(bucket) + compat::format("/{}", key);
 
   HttpBodyRequest req = Client.put(url).header("Host", getHostHeader(bucket)).body(body);
 
@@ -398,7 +398,7 @@ std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &buc
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -406,10 +406,10 @@ std::expected<PutObjectResult, Error> S3Client::PutObject(const std::string &buc
     return deserializePutObjectResult(res.headers());
   }
   const std::vector<XMLNode> &XMLBody = Parser.parse(res.body());
-  return std::unexpected<Error>(deserializeError(XMLBody));
+  return compat::make_unexpected(deserializeError(XMLBody));
 }
 
-std::expected<PutObjectResult, Error>
+compat::expected<PutObjectResult, Error>
 S3Client::PutObjectFile(const std::string &bucket, const std::string &key,
                         const std::string &filename,
                         const std::string &contentType,
@@ -417,16 +417,16 @@ S3Client::PutObjectFile(const std::string &bucket, const std::string &key,
   std::error_code error;
   const auto size = std::filesystem::file_size(filename, error);
   if (error) {
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "FileError", .Message = error.message()});
   }
 
   auto hash = HashFile(filename);
   if (!hash) {
-    return std::unexpected<Error>(hash.error());
+    return compat::make_unexpected(hash.error());
   }
 
-  const std::string url = buildURL(bucket) + std::format("/{}", key);
+  const std::string url = buildURL(bucket) + compat::format("/{}", key);
   auto request =
       Client.putFile(url, filename, static_cast<curl_off_t>(size))
           .header("Host", getHostHeader(bucket))
@@ -437,20 +437,20 @@ S3Client::PutObjectFile(const std::string &bucket, const std::string &key,
 
   auto result = request.execute();
   if (!result) {
-    return std::unexpected<Error>(
+    return compat::make_unexpected(
         Error{.Code = "HttpError", .Message = result.error()});
   }
   if (result->is_ok()) {
     return deserializePutObjectResult(result->headers());
   }
-  return std::unexpected<Error>(deserializeError(Parser.parse(result->body())));
+  return compat::make_unexpected(deserializeError(Parser.parse(result->body())));
 }
 
-std::expected<DeleteObjectResult, Error>
+compat::expected<DeleteObjectResult, Error>
 S3Client::DeleteObject(const std::string &bucket, const std::string &key, const DeleteObjectInput &options) {
-  std::string url = buildURL(bucket) + std::format("/{}", key);
+  std::string url = buildURL(bucket) + compat::format("/{}", key);
   if (options.versionId.has_value())
-    url += std::format("?versionId={}", options.versionId.value());
+    url += compat::format("?versionId={}", options.versionId.value());
 
   HttpBodyRequest req = Client.del(url).header("Host", getHostHeader(bucket));
 
@@ -473,17 +473,17 @@ S3Client::DeleteObject(const std::string &bucket, const std::string &key, const 
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
   if (res.is_ok()) {
     return deserializeDeleteObjectResult(res.headers());
   }
-  return std::unexpected<Error>(deserializeError(Parser.parse(res.body())));
+  return compat::make_unexpected(deserializeError(Parser.parse(res.body())));
 }
 
-std::expected<CreateBucketResult, Error>
+compat::expected<CreateBucketResult, Error>
 S3Client::CreateBucket(const std::string &bucket, const CreateBucketConfiguration &configuration,
                        const CreateBucketInput &options) {
 
@@ -520,30 +520,30 @@ S3Client::CreateBucket(const std::string &bucket, const CreateBucketConfiguratio
   // provided?
   if (!configuration.LocationConstraint.empty())
     createBucketReqBodyXML +=
-        std::format("<LocationConstraint>{}</LocationConstraint>", configuration.LocationConstraint);
+        compat::format("<LocationConstraint>{}</LocationConstraint>", configuration.LocationConstraint);
   if (!configuration.Location.Name.empty() || !configuration.Location.Type.empty()) {
     createBucketReqBodyXML += "<Location>";
     if (!configuration.Location.Name.empty())
-      createBucketReqBodyXML += std::format("<Name>{}</Name>", configuration.Location.Name);
+      createBucketReqBodyXML += compat::format("<Name>{}</Name>", configuration.Location.Name);
     if (!configuration.Location.Type.empty())
-      createBucketReqBodyXML += std::format("<Type>{}</Type>", configuration.Location.Type);
+      createBucketReqBodyXML += compat::format("<Type>{}</Type>", configuration.Location.Type);
     createBucketReqBodyXML += "</Location>";
   }
   if (!configuration.Bucket.DataRedundancy.empty() || !configuration.Bucket.Type.empty()) {
     createBucketReqBodyXML += "<Bucket>";
     if (!configuration.Bucket.DataRedundancy.empty())
       createBucketReqBodyXML +=
-          std::format("<DataRedundancy>{}</DataRedundancy>", configuration.Bucket.DataRedundancy);
+          compat::format("<DataRedundancy>{}</DataRedundancy>", configuration.Bucket.DataRedundancy);
     if (!configuration.Bucket.Type.empty())
-      createBucketReqBodyXML += std::format("<Type>{}</Type>", configuration.Bucket.Type);
+      createBucketReqBodyXML += compat::format("<Type>{}</Type>", configuration.Bucket.Type);
     createBucketReqBodyXML += "</Bucket>";
   }
   if (!configuration.Tags.empty()) {
     createBucketReqBodyXML += "<Tags>";
     for (const auto &tag : configuration.Tags) {
       createBucketReqBodyXML += "<Tag>";
-      createBucketReqBodyXML += std::format("<Key>{}</Key>", tag.Key);
-      createBucketReqBodyXML += std::format("<Value>{}</Value>", tag.Value);
+      createBucketReqBodyXML += compat::format("<Key>{}</Key>", tag.Key);
+      createBucketReqBodyXML += compat::format("<Value>{}</Value>", tag.Value);
       createBucketReqBodyXML += "</Tag>";
     }
     createBucketReqBodyXML += "</Tags>";
@@ -554,7 +554,7 @@ S3Client::CreateBucket(const std::string &bucket, const CreateBucketConfiguratio
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -562,10 +562,10 @@ S3Client::CreateBucket(const std::string &bucket, const CreateBucketConfiguratio
     return deserializeCreateBucketResult(res.headers());
   }
   const std::vector<XMLNode> &XMLBody = Parser.parse(res.body());
-  return std::unexpected<Error>(deserializeError(XMLBody));
+  return compat::make_unexpected(deserializeError(XMLBody));
 }
 
-std::expected<void, Error> S3Client::DeleteBucket(const std::string &bucket,
+compat::expected<void, Error> S3Client::DeleteBucket(const std::string &bucket,
                                                   const DeleteBucketInput &options) {
   std::string url = buildURL(bucket);
 
@@ -578,7 +578,7 @@ std::expected<void, Error> S3Client::DeleteBucket(const std::string &bucket,
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -586,10 +586,10 @@ std::expected<void, Error> S3Client::DeleteBucket(const std::string &bucket,
     return {};
   }
   const std::vector<XMLNode> &XMLBody = Parser.parse(res.body());
-  return std::unexpected<Error>(deserializeError(XMLBody));
+  return compat::make_unexpected(deserializeError(XMLBody));
 }
 
-std::expected<HeadBucketResult, Error> S3Client::HeadBucket(const std::string &bucket,
+compat::expected<HeadBucketResult, Error> S3Client::HeadBucket(const std::string &bucket,
                                                             const HeadBucketInput &options) {
   std::string url = buildURL(bucket);
 
@@ -602,7 +602,7 @@ std::expected<HeadBucketResult, Error> S3Client::HeadBucket(const std::string &b
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -625,53 +625,53 @@ std::expected<HeadBucketResult, Error> S3Client::HeadBucket(const std::string &b
     }
   } else {
     error.Code = "UnknownError";
-    error.Message = std::format("HTTP {}", res.status());
+    error.Message = compat::format("HTTP {}", res.status());
   }
 
-  return std::unexpected<Error>(error);
+  return compat::make_unexpected(error);
 }
 
-std::expected<HeadObjectResult, Error> S3Client::HeadObject(const std::string &bucket, const std::string &key,
+compat::expected<HeadObjectResult, Error> S3Client::HeadObject(const std::string &bucket, const std::string &key,
                                                             const HeadObjectInput &options) {
-  std::string url = buildURL(bucket) + std::format("/{}", key);
+  std::string url = buildURL(bucket) + compat::format("/{}", key);
 
   // Query params
   bool firstParam = true;
   if (options.partNumber.has_value()) {
-    url += std::format("{}part-number={}", firstParam ? "?" : "&", options.partNumber.value());
+    url += compat::format("{}part-number={}", firstParam ? "?" : "&", options.partNumber.value());
     firstParam = false;
   }
   if (options.versionId.has_value()) {
-    url += std::format("{}versionId={}", firstParam ? "?" : "&", options.versionId.value());
+    url += compat::format("{}versionId={}", firstParam ? "?" : "&", options.versionId.value());
     firstParam = false;
   }
   if (options.response_cache_control.has_value()) {
-    url += std::format("{}response-cache-control={}", firstParam ? "?" : "&",
+    url += compat::format("{}response-cache-control={}", firstParam ? "?" : "&",
                        options.response_cache_control.value());
     firstParam = false;
   }
   if (options.response_content_disposition.has_value()) {
-    url += std::format("{}response-content-disposition={}", firstParam ? "?" : "&",
+    url += compat::format("{}response-content-disposition={}", firstParam ? "?" : "&",
                        options.response_content_disposition.value());
     firstParam = false;
   }
   if (options.response_content_encoding.has_value()) {
-    url += std::format("{}response-content-encoding={}", firstParam ? "?" : "&",
+    url += compat::format("{}response-content-encoding={}", firstParam ? "?" : "&",
                        options.response_content_encoding.value());
     firstParam = false;
   }
   if (options.response_content_language.has_value()) {
-    url += std::format("{}response-content-language={}", firstParam ? "?" : "&",
+    url += compat::format("{}response-content-language={}", firstParam ? "?" : "&",
                        options.response_content_language.value());
     firstParam = false;
   }
   if (options.response_content_type.has_value()) {
-    url += std::format("{}response-content-type={}", firstParam ? "?" : "&",
+    url += compat::format("{}response-content-type={}", firstParam ? "?" : "&",
                        options.response_content_type.value());
     firstParam = false;
   }
   if (options.response_expires.has_value()) {
-    url += std::format("{}response-expires={}", firstParam ? "?" : "&", options.response_expires.value());
+    url += compat::format("{}response-expires={}", firstParam ? "?" : "&", options.response_expires.value());
     firstParam = false;
   }
 
@@ -705,7 +705,7 @@ std::expected<HeadObjectResult, Error> S3Client::HeadObject(const std::string &b
   Signer.sign(req);
   auto result = req.execute();
   if (!result.has_value()) {
-    return std::unexpected<Error>(Error{.Code = "HttpError", .Message = result.error()});
+    return compat::make_unexpected(Error{.Code = "HttpError", .Message = result.error()});
   }
   HttpResponse res = result.value();
 
@@ -728,9 +728,9 @@ std::expected<HeadObjectResult, Error> S3Client::HeadObject(const std::string &b
     }
   } else {
     error.Code = "UnknownError";
-    error.Message = std::format("HTTP {}", res.status());
+    error.Message = compat::format("HTTP {}", res.status());
   }
-  return std::unexpected<Error>(error);
+  return compat::make_unexpected(error);
 }
 
 Error S3Client::deserializeError(const std::vector<XMLNode> &nodes) {
@@ -755,7 +755,7 @@ Error S3Client::deserializeError(const std::vector<XMLNode> &nodes) {
   return error;
 }
 
-std::expected<PutObjectResult, Error>
+compat::expected<PutObjectResult, Error>
 S3Client::deserializePutObjectResult(const std::map<std::string, std::string, LowerCaseCompare> &headers) {
   PutObjectResult result;
 
@@ -798,7 +798,7 @@ S3Client::deserializePutObjectResult(const std::map<std::string, std::string, Lo
     else {
       continue;
       // To debug:
-      // throw std::runtime_error(std::format("No case for PutObjectResult
+      // throw std::runtime_error(compat::format("No case for PutObjectResult
       // response found for: {}", header));
     }
   }
@@ -806,7 +806,7 @@ S3Client::deserializePutObjectResult(const std::map<std::string, std::string, Lo
   return result;
 }
 
-std::expected<DeleteObjectResult, Error>
+compat::expected<DeleteObjectResult, Error>
 S3Client::deserializeDeleteObjectResult(const std::map<std::string, std::string, LowerCaseCompare> &headers) {
   DeleteObjectResult result;
   for (const auto &[header, value] : headers) {
@@ -823,7 +823,7 @@ S3Client::deserializeDeleteObjectResult(const std::map<std::string, std::string,
   return result;
 }
 
-std::expected<CreateBucketResult, Error>
+compat::expected<CreateBucketResult, Error>
 S3Client::deserializeCreateBucketResult(const std::map<std::string, std::string, LowerCaseCompare> &headers) {
   CreateBucketResult result;
   for (const auto &[header, value] : headers) {
@@ -838,7 +838,7 @@ S3Client::deserializeCreateBucketResult(const std::map<std::string, std::string,
   return result;
 }
 
-std::expected<HeadBucketResult, Error>
+compat::expected<HeadBucketResult, Error>
 S3Client::deserializeHeadBucketResult(const std::map<std::string, std::string, LowerCaseCompare> &headers) {
   HeadBucketResult result;
   for (const auto &[header, value] : headers) {
@@ -859,7 +859,7 @@ S3Client::deserializeHeadBucketResult(const std::map<std::string, std::string, L
   return result;
 }
 
-std::expected<HeadObjectResult, Error>
+compat::expected<HeadObjectResult, Error>
 S3Client::deserializeHeadObjectResult(const std::map<std::string, std::string, LowerCaseCompare> &headers) {
   HeadObjectResult result;
   for (const auto &[header, value] : headers) {
